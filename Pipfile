@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+[packages]
+flask = "==2.2.5"
+flask-cors = "*"
+flask-bcrypt = "*"
+werkzeug = "==2.2.3"
+flask_sqlalchemy = "*"
+flask_jwt_extended = "*"
+importlib_metadata = "==6.7.0"
+zipp = "==3.15.0"
+pandas = "*"
+openpyxl = "*"
+python-dotenv = "*"
+pytz = "*"
+waitress = "*"
+openai = "*"
+XlsxWriter= "==3.1.2"
+[dev-packages]
+[requires]
+python_version = "3.11"
+openai==1.57.0
