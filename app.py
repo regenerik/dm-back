@@ -22,6 +22,7 @@ from routes.clasifica_comentarios_individuales_bp import clasifica_comentarios_i
 from routes.comentarios_necesidades_bp import comentarios_necesidades_bp
 from routes.comentarios_necesidades_final_bp import comentarios_necesidades_final_bp
 from routes.data_mentor_cursos_bp import data_mentor_cursos_bp
+from routes.recursos_bp import recursos_bp
 from initial_data_setup import carga_base_instrucciones_ia_data_mentor # Este es el que funciona para IA DATAMENTOR
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS                         # Permisos de consumo
@@ -87,6 +88,8 @@ app.register_blueprint(comentarios_necesidades_bp, url_prefix='/')
 app.register_blueprint(comentarios_necesidades_final_bp , url_prefix='/')
 
 app.register_blueprint(data_mentor_cursos_bp , url_prefix='/')
+
+app.register_blueprint(recursos_bp , url_prefix='/')
 
 # DATABASE---------------
 db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'mydatabase.db')

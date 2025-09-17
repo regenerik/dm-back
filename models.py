@@ -1021,3 +1021,49 @@ class Instructions(db.Model):
             "instructions": self.instructions,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+    
+
+# MODELOS PARA RECURSOS HUMANOS
+
+class JobDescription(db.Model):
+    __tablename__ = "job_description"
+
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(255), nullable=False)
+    job_description = db.Column(db.Text, nullable=False)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    created_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def serialize_min(self):
+        return {"job_description_id": self.id, "titulo": self.titulo}
+
+
+class Curriculos(db.Model):
+    __tablename__ = "curriculos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    created_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    file_name = db.Column(db.String(512), nullable=False)
+    puntaje = db.Column(db.Float, nullable=True)
+    comentario_ia = db.Column(db.Text, nullable=True)
+    validez = db.Column(db.String(16), nullable=False)          # "VALIDO" | "INVALIDO"
+    recomendado = db.Column(db.String(8), nullable=False)       # "SI" | "NO"
+    formato_original = db.Column(db.String(16), nullable=False) # "pdf" | "docx" | "txt" | "doc"
+    job_description_id = db.Column(db.Integer, db.ForeignKey("job_description.id"), nullable=False)
+
+    job_description = db.relationship("JobDescription", backref=db.backref("curriculos", lazy=True))
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "created_date": self.created_date.isoformat() if self.created_date else None,
+            "file_name": self.file_name,
+            "puntaje": self.puntaje,
+            "comentario_ia": self.comentario_ia,
+            "validez": self.validez,
+            "recomendado": self.recomendado,
+            "formato_original": self.formato_original,
+            "job_description_id": self.job_description_id,
+        }
