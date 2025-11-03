@@ -5,7 +5,7 @@ import os
 import io
 import re
 import time
-
+from mailjet_rest import Client
 from logging_config import logger
 
 # --- Importaciones de librerías para extracción de texto ---
@@ -93,6 +93,7 @@ def create_gamma():
     descripcion = request.form.get('descripcion', '')
     archivo = request.files.get('file')
     image_url = request.form.get('imageUrl')
+    email = request.form.get('email')
 
     themeName = request.form.get('themeName')
     numCards = request.form.get('numCards')
@@ -240,6 +241,59 @@ def create_gamma():
 
                     if gamma_url and pdf_url:
                         logger.info(f"URLs encontradas. Gamma: {gamma_url}, PDF: {pdf_url}")
+
+                        # Si se proporciona un email, enviar el enlace por correo
+                        if email:
+                            logger.info(f"Enviando enlace de exportación por email a: {email}")
+                            
+                            subject = f"Presentación Generada - {'PPTX' if exportAs == 'pptx' else 'Archivo'} Disponible"
+                            
+                            # Usamos f-string para incluir las URLs
+                            text = (
+                                f"Estimado/a,\n\n"
+                                f"Tu presentación ha sido generada correctamente.\n\n"
+                                f"Puedes descargar el archivo haciendo click en el siguiente enlace:\n"
+                                f"{pdf_url}\n\n"
+                                f"También puedes ver y editar la presentación en Gamma (si está disponible):\n"
+                                f"{gamma_url}\n\n"
+                                f"Gracias por utilizar nuestros servicios."
+                            )
+                            
+                            # Cuerpo HTML opcional, a menudo mejora la entrega y presentación
+                            html_part = (
+                                f"<h3>Presentación Generada 🚀</h3>"
+                                f"<p>Tu presentación ha sido generada correctamente.</p>"
+                                f"<p>Puedes descargar el archivo haciendo click en el siguiente enlace:</p>"
+                                f'<p><a href="{pdf_url}" target="_blank">Descargar Archivo ({exportAs.upper()})</a></p>'
+                                f"<p>También puedes ver y editar la presentación en Gamma:</p>"
+                                f'<p><a href="{gamma_url}" target="_blank">{gamma_url}</a></p>'
+                                f"<br/>"
+                                f"<p>Gracias por utilizar nuestros servicios.</p>"
+                            )
+
+                            mailjet = Client(auth=(os.getenv('MJ_APIKEY_PUBLIC'),
+                                                os.getenv('MJ_APIKEY_PRIVATE')),
+                                            version='v3.1')
+                            
+                            mail_data = {
+                                'Messages': [{
+                                    'From': {'Email': os.getenv('MJ_SENDER_EMAIL'), 'Name': 'Generador Gamma'},
+                                    'To': [{'Email': email}], # Usamos la variable 'email'
+                                    'Subject': subject,
+                                    'TextPart': text,
+                                    'HTMLPart': html_part,
+                                    # NOTA: No incluimos 'Attachments' ya que la URL es un enlace temporal de descarga.
+                                }]
+                            }
+
+                            try:
+                                res = mailjet.send.create(data=mail_data)
+                                logger.info(f"Email de presentación enviado a {email} → {res.status_code}")
+                            except Exception as e:
+                                logger.error(f"Error enviando email de presentación a {email}: {e}")
+
+                        # --- FIN DEL CÓDIGO PARA MANDAR EMAIL ---
+
                         return jsonify({
                             "status": "completed",
                             "gammaUrl": gamma_url,
