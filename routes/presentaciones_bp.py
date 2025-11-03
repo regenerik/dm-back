@@ -160,12 +160,12 @@ def create_gamma():
 
     # if themeName:
     #     payload['themeName'] = themeName
-    # if numCards:
-    #     # La API espera un número, por lo que es mejor convertirlo
-    #     try:
-    #         payload['numCards'] = int(numCards)
-    #     except ValueError:
-    #         pass # Ignora si el valor no es un número válido
+    if numCards:
+        # La API espera un número, por lo que es mejor convertirlo
+        try:
+            payload['numCards'] = int(numCards)
+        except ValueError:
+            pass # Ignora si el valor no es un número válido
 
     if tone or amount or audience or language or exportAs:
         if 'textOptions' not in payload:
@@ -182,7 +182,7 @@ def create_gamma():
 
     if exportAs:
         payload['exportAs'] = exportAs
-        
+
     logger.info(payload)
 
     headers_post = {
