@@ -100,6 +100,7 @@ def create_gamma():
     amount = request.form.get('amount')
     audience = request.form.get('audience')
     language = request.form.get('language')
+    exportAs = request.form.get('exportAs')
 
     logger.info(f"Datos recibidos: Titulo='{titulo}', Descripcion='{descripcion}'")
 
@@ -166,7 +167,7 @@ def create_gamma():
     #     except ValueError:
     #         pass # Ignora si el valor no es un número válido
 
-    if tone or amount or audience or language:
+    if tone or amount or audience or language or exportAs:
         if 'textOptions' not in payload:
             payload['textOptions'] = {}
 
@@ -179,6 +180,9 @@ def create_gamma():
         if language:
             payload['textOptions']['language'] = language
 
+    if exportAs:
+        payload['exportAs'] = exportAs
+        
     logger.info(payload)
 
     headers_post = {
