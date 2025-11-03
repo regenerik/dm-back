@@ -7,6 +7,7 @@ import re
 import time
 from mailjet_rest import Client
 from logging_config import logger
+import base64
 
 # --- Importaciones de librerías para extracción de texto ---
 import PyPDF2
@@ -244,33 +245,68 @@ def create_gamma():
 
                         # Si se proporciona un email, enviar el enlace por correo
                         if email:
-                            logger.info(f"Enviando enlace de exportación por email a: {email}")
+                            logger.info(f"Iniciando descarga de {exportAs.upper()} desde: {pdf_url}")
+
+                            # 1. DESCARGA DEL ARCHIVO BINARIO
+                            try:
+                                # Petición GET para descargar el contenido del archivo
+                                file_response = requests.get(pdf_url, stream=True)
+                                file_response.raise_for_status() # Lanza un error para códigos 4xx/5xx
+
+                                # pptx_bytes contendrá el contenido binario del archivo
+                                pptx_bytes = file_response.content 
+                                
+                                # Opcional: Verificar el tamaño antes de codificar (muy recomendable)
+                                file_size_mb = len(pptx_bytes) / (1024 * 1024)
+                                if file_size_mb > 25:
+                                    logger.warning(f"Archivo demasiado grande ({file_size_mb:.2f} MB). No se adjuntará. Se enviará solo el link.")
+                                    pptx_bytes = None # Desactiva el adjunto y pasa a enviar solo el link
+                                else:
+                                    logger.info(f"Archivo de tamaño seguro ({file_size_mb:.2f} MB). Preparando adjunto.")
+
+                            except requests.exceptions.RequestException as e:
+                                logger.error(f"Error al descargar el archivo desde {pdf_url}: {e}")
+                                pptx_bytes = None # Si falla la descarga, no adjuntamos
+
                             
+                            attachments = []
+                            if pptx_bytes:
+                                # 2. CODIFICACIÓN A BASE64
+                                encoded_content = base64.b64encode(pptx_bytes).decode('utf-8')
+                                
+                                # 3. CREACIÓN DEL ADJUNTO
+                                # MIME Type correcto para PPTX
+                                mime_type = 'application/vnd.openxmlformats-officedocument.presentationml.presentation' 
+                                file_name = f"Presentacion_Gamma.{'pptx' if exportAs == 'pptx' else 'archivo'}"
+                                
+                                attachments = [{
+                                    'ContentType': mime_type,
+                                    'Filename': file_name,
+                                    'Base64Content': encoded_content
+                                }]
+                                
+                                # Mensaje más conciso ya que el adjunto está incluido
+                                text_part = f"Estimado/a,\n\nTu presentación ha sido generada y adjuntada a este correo.\n\nTambién puedes acceder a la versión web aquí: {gamma_url}"
+                                html_part = f"<h3>Presentación Generada 🚀</h3><p>Tu presentación ha sido generada y adjuntada. Puedes ver la versión web aquí: <a href='{gamma_url}'>Ver en Gamma App</a></p>"
+                            
+                            else:
+                                # Si la descarga falló o es demasiado grande, enviamos solo el link (el comportamiento anterior)
+                                text_part = (
+                                    f"Estimado/a,\n\nTu presentación ha sido generada correctamente, pero no se pudo adjuntar (por ser muy pesada o un error).\n\n"
+                                    f"Descárgala directamente aquí:\n{pdf_url}\n"
+                                    f"Versión web: {gamma_url}"
+                                )
+                                html_part = (
+                                    f"<h3>Presentación Generada 🚀</h3>"
+                                    f"<p>Tu presentación ha sido generada, pero no se pudo adjuntar. Puedes descargarla directamente aquí:</p>"
+                                    f'<p><a href="{pdf_url}" target="_blank">Descargar Archivo ({exportAs.upper()})</a></p>'
+                                    f"<p>Versión web: <a href='{gamma_url}' target='_blank'>Ver en Gamma App</a></p>"
+                                )
+
+
+                            # Lógica de Mailjet (usa text_part, html_part y attachments)
                             subject = f"Presentación Generada - {'PPTX' if exportAs == 'pptx' else 'Archivo'} Disponible"
                             
-                            # Usamos f-string para incluir las URLs
-                            text = (
-                                f"Estimado/a,\n\n"
-                                f"Tu presentación ha sido generada correctamente.\n\n"
-                                f"Puedes descargar el archivo haciendo click en el siguiente enlace:\n"
-                                f"{pdf_url}\n\n"
-                                f"También puedes ver y editar la presentación en Gamma (si está disponible):\n"
-                                f"{gamma_url}\n\n"
-                                f"Gracias por utilizar nuestros servicios."
-                            )
-                            
-                            # Cuerpo HTML opcional, a menudo mejora la entrega y presentación
-                            html_part = (
-                                f"<h3>Presentación Generada 🚀</h3>"
-                                f"<p>Tu presentación ha sido generada correctamente.</p>"
-                                f"<p>Puedes descargar el archivo haciendo click en el siguiente enlace:</p>"
-                                f'<p><a href="{pdf_url}" target="_blank">Descargar Archivo ({exportAs.upper()})</a></p>'
-                                f"<p>También puedes ver y editar la presentación en Gamma:</p>"
-                                f'<p><a href="{gamma_url}" target="_blank">{gamma_url}</a></p>'
-                                f"<br/>"
-                                f"<p>Gracias por utilizar nuestros servicios.</p>"
-                            )
-
                             mailjet = Client(auth=(os.getenv('MJ_APIKEY_PUBLIC'),
                                                 os.getenv('MJ_APIKEY_PRIVATE')),
                                             version='v3.1')
@@ -278,11 +314,11 @@ def create_gamma():
                             mail_data = {
                                 'Messages': [{
                                     'From': {'Email': os.getenv('MJ_SENDER_EMAIL'), 'Name': 'Generador Gamma'},
-                                    'To': [{'Email': email}], # Usamos la variable 'email'
+                                    'To': [{'Email': email}],
                                     'Subject': subject,
-                                    'TextPart': text,
+                                    'TextPart': text_part,
                                     'HTMLPart': html_part,
-                                    # NOTA: No incluimos 'Attachments' ya que la URL es un enlace temporal de descarga.
+                                    'Attachments': attachments # Se adjunta solo si pptx_bytes no es None
                                 }]
                             }
 
