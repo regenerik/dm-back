@@ -96,7 +96,7 @@ def create_gamma():
     image_url = request.form.get('imageUrl')
     email = request.form.get('email')
 
-    themeId = request.form.get('themeId')
+    themeName = request.form.get('themeName')
     numCards = request.form.get('numCards')
     tone = request.form.get('tone')
     amount = request.form.get('amount')
@@ -160,8 +160,8 @@ def create_gamma():
 
  
 
-    # if themeId:
-    #     payload['themeId'] = themeId
+    # if themeName:
+    #     payload['themeName'] = themeName
     if numCards:
         # La API espera un número, por lo que es mejor convertirlo
         try:
