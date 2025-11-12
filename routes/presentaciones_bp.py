@@ -156,6 +156,15 @@ def create_gamma():
             "source": "aiGenerated",
             "style": "profesional, con colores corporativos",
         },
+        "cardOptions": {
+          "headerFooter": {
+            "topRight": {
+              "type": "image", 
+              "source": "themeLogo",
+              "size": "sm"
+            }
+          }
+        }
     }
 
  
