@@ -162,7 +162,9 @@ def create_gamma():
               "type": "image", 
               "source": "themeLogo",
               "size": "sm"
-            }
+            },
+            "hideFromFirstCard": False,
+            "hideFromLastCard": False
           }
         }
     }
