@@ -160,8 +160,8 @@ def create_gamma():
 
  
 
-    if themeId:
-        payload['themeId'] = themeId
+    # if themeId:
+    #     payload['themeId'] = themeId
     if numCards:
         # La API espera un número, por lo que es mejor convertirlo
         try:
