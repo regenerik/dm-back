@@ -154,7 +154,7 @@ def create_gamma():
         },
         "imageOptions": {
             "source": "aiGenerated",
-            "style": "profesional, con colores corporativos",
+            "style": "profesional, con colores corporativos, sin personas, sin figuras humanas",
         },
         "cardOptions": {
           "headerFooter": {
