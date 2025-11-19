@@ -153,15 +153,14 @@ def create_gamma():
             "language": "en"
         },
         "imageOptions": {
-            "source": "aiGenerated",
-            "style": "profesional, con colores corporativos, sin personas, sin figuras humanas",
+            "source": "noImages"
         },
         "cardOptions": {
           "headerFooter": {
             "topRight": {
               "type": "image", 
               "source": "themeLogo",
-              "size": "sm"
+              "size": "md"
             },
             "hideFromFirstCard": False,
             "hideFromLastCard": False
