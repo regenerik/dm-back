@@ -160,7 +160,7 @@ def create_gamma():
             "topRight": {
               "type": "image", 
               "source": "themeLogo",
-              "size": "md"
+              "size": "lg"
             },
             "hideFromFirstCard": False,
             "hideFromLastCard": False
