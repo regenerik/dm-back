@@ -156,11 +156,12 @@ def create_gamma():
             "source": "noImages"
         },
         "cardOptions": {
+          "dimensions": "16x9",
           "headerFooter": {
             "topRight": {
               "type": "image", 
               "source": "themeLogo",
-              "size": "lg"
+              "size": "xl"
             },
             "hideFromFirstCard": False,
             "hideFromLastCard": False
