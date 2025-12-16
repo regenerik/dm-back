@@ -4,6 +4,7 @@ import hashlib
 import uuid
 import json
 from logging_config import logger
+from sqlalchemy.dialects.postgresql import JSON
 
 
 class User(db.Model):
@@ -1066,4 +1067,48 @@ class Curriculos(db.Model):
             "recomendado": self.recomendado,
             "formato_original": self.formato_original,
             "job_description_id": self.job_description_id,
+        }
+    
+
+class FormularioNecesidades(db.Model):
+    __tablename__ = "formulario_necesidades"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    provincia = db.Column(db.String(100), nullable=False)
+    localidad = db.Column(db.String(100), nullable=False)
+    apies = db.Column(db.String(50), nullable=False)
+
+    empleados_total = db.Column(db.Integer)
+
+    gestor = db.Column(db.String(150))
+    email_gestor = db.Column(db.String(150))
+
+    experiencia_cliente = db.Column(db.String(10))
+    liderazgo = db.Column(db.String(10))
+
+    comentarios = db.Column(db.Text)
+
+    seguridad_operativa = db.Column(JSON)
+
+    # 👉 Respuesta del Assistant
+    respuesta_ia = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "provincia": self.provincia,
+            "localidad": self.localidad,
+            "apies": self.apies,
+            "empleados_total": self.empleados_total,
+            "gestor": self.gestor,
+            "email_gestor": self.email_gestor,
+            "experiencia_cliente": self.experiencia_cliente,
+            "liderazgo": self.liderazgo,
+            "comentarios": self.comentarios,
+            "seguridad_operativa": self.seguridad_operativa,
+            "respuesta_ia": self.respuesta_ia,
+            "created_at": self.created_at.isoformat()
         }
