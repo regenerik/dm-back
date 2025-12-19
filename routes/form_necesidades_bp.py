@@ -336,9 +336,17 @@ def download_necesidades_excel():
 
 @form_necesidades_bp.route('/delete_especific_necesidades_form', methods=['POST'])
 def delete_necesidad():
-    data = request.get_json()
+    # 1. Usar silent=True y force=True para evitar el 400 automático de Flask
+    data = request.get_json(silent=True, force=True)
+    
+    # Debug para ver qué llega realmente al servidor de Render
+    print(f"DEBUG DATA: {data}") 
+
+    if not data:
+        return jsonify({"msg": "El servidor no recibió un JSON válido"}), 400
+
     form_id = data.get("id")
-    email_usuario = data.get("email") # El que viene de localStorage en el front
+    email_usuario = data.get("email")
 
     if not form_id or not email_usuario:
         return jsonify({"msg": "Faltan datos requeridos (id o email)"}), 400
