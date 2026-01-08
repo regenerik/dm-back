@@ -1,7 +1,7 @@
 from flask import Blueprint, send_file, request, jsonify, current_app, Response # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager
-from models import SegundoSurvey
+from models import SextoSurvey
 from database import db                                          # importa la db desde database.py
 from utils.sexto_survey_utils import obtener_y_guardar_survey
 from logging_config import logger
@@ -64,7 +64,7 @@ def run_obtener_y_guardar_survey():
 def descargar_sexto_survey():
     try:
         # Obtener el registro más reciente de la base de datos
-        survey_record = SegundoSurvey.query.order_by(SegundoSurvey.id.desc()).first()
+        survey_record = SextoSurvey.query.order_by(SextoSurvey.id.desc()).first()
 
         if not survey_record:
             return jsonify({"message": "No se encontraron encuestas en la base de datos"}), 404
