@@ -1117,3 +1117,183 @@ class FormularioNecesidades(db.Model):
             "respuesta_ia": self.respuesta_ia,
             "created_at": self.created_at.isoformat()
         }
+
+
+class DiagnosticoOperadores(db.Model):
+    __tablename__ = "diagnostico_operadores"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # -------------------
+    # SECCIÓN 1 - DATOS GENERALES
+    # -------------------
+    provincia_localidad = db.Column(db.String(255), nullable=True, default="")
+    apies               = db.Column(db.String(50), nullable=True, default="")
+    tipo_estacion       = db.Column(db.String(50), nullable=True, default="")
+    empleados_total     = db.Column(db.String(20), nullable=True, default="")
+
+    playa_personal  = db.Column(db.String(20), nullable=True, default="")
+    tienda_personal = db.Column(db.String(20), nullable=True, default="")
+    boxes_personal  = db.Column(db.String(20), nullable=True, default="")
+
+    anios_operacion      = db.Column(db.String(50), nullable=True, default="")
+    capacitaciones_anio  = db.Column(db.String(50), nullable=True, default="")
+    solo_aprendizaje     = db.Column(db.String(10), nullable=True, default="")
+    detalle_otras_cap    = db.Column(db.Text, nullable=True, default="")
+    gestor_asociado      = db.Column(db.String(150), nullable=True, default="")
+
+    # -------------------
+    # SECCIÓN 2 - SEGURIDAD Y CUMPLIMIENTO
+    # -------------------
+    nivel_seguridad          = db.Column(db.String(5), nullable=True, default="")
+    preparacion_emergencia   = db.Column(db.String(5), nullable=True, default="")
+    mejoras_seguridad        = db.Column(db.Text, nullable=True, default="")  # JSON array
+
+    nivel_bromatologia       = db.Column(db.String(5), nullable=True, default="")
+    mejoras_bromatologia     = db.Column(db.Text, nullable=True, default="")  # JSON array
+
+    frecuencia_accidentes    = db.Column(db.String(50), nullable=True, default="")
+    situaciones_accidentes   = db.Column(db.Text, nullable=True, default="")  # JSON array
+
+    otro_seguridad_playa     = db.Column(db.String(255), nullable=True, default="")
+    otro_seguridad_tienda    = db.Column(db.String(255), nullable=True, default="")
+    otro_seguridad_boxes     = db.Column(db.String(255), nullable=True, default="")
+    otro_bromatologia        = db.Column(db.String(255), nullable=True, default="")
+    otro_accidentes          = db.Column(db.String(255), nullable=True, default="")
+
+    # -------------------
+    # SECCIÓN 3 - EXPERIENCIA DEL CLIENTE
+    # -------------------
+    nivel_pilares            = db.Column(db.String(5), nullable=True, default="")
+    efectividad_comunicacion = db.Column(db.String(5), nullable=True, default="")
+    actitud_empatica         = db.Column(db.String(5), nullable=True, default="")
+    autonomia_reclamos       = db.Column(db.String(5), nullable=True, default="")
+    adaptacion_estilo        = db.Column(db.String(5), nullable=True, default="")
+
+    aspectos_atencion        = db.Column(db.Text, nullable=True, default="")  # JSON array
+    otro_aspectos_atencion   = db.Column(db.String(255), nullable=True, default="")
+
+    # -------------------
+    # SECCIÓN 4 - CONOCIMIENTO Y RANKING
+    # -------------------
+    conoce_playa   = db.Column(db.String(5), nullable=True, default="")
+    conoce_tienda  = db.Column(db.String(5), nullable=True, default="")
+    conoce_boxes   = db.Column(db.String(5), nullable=True, default="")
+    conoce_digital = db.Column(db.String(5), nullable=True, default="")
+
+    ranking_temas  = db.Column(db.Text, nullable=True, default="")  # JSON array
+
+    # -------------------
+    # SECCIÓN 5 - GESTIÓN Y REPUTACIÓN
+    # -------------------
+    dominio_gestion        = db.Column(db.String(5), nullable=True, default="")
+    capacidad_analisis     = db.Column(db.String(5), nullable=True, default="")
+    uso_herramientas_dig   = db.Column(db.String(5), nullable=True, default="")
+
+    ranking_desafios       = db.Column(db.Text, nullable=True, default="")  # JSON array
+
+    # -------------------
+    # SECCIÓN 6 - LIDERAZGO
+    # -------------------
+    liderazgo_efectivo      = db.Column(db.String(5), nullable=True, default="")
+    frecuencia_feedback     = db.Column(db.String(50), nullable=True, default="")
+    habilidades_org         = db.Column(db.String(5), nullable=True, default="")
+    estilo_liderazgo        = db.Column(db.String(50), nullable=True, default="")
+
+    ranking_fortalecer_lider = db.Column(db.Text, nullable=True, default="")  # JSON array
+
+    interes_capacitacion    = db.Column(db.String(5), nullable=True, default="")
+    temas_prioritarios      = db.Column(db.Text, nullable=True, default="")  # JSON array
+    otro_tema_prioritario   = db.Column(db.String(255), nullable=True, default="")
+    sugerencias_finales     = db.Column(db.Text, nullable=True, default="")
+
+    # -------------------
+    # CAMPO EXTRA PEDIDO
+    # -------------------
+    conclucion_final = db.Column(db.Text, nullable=True, default=None)
+    respuesta_ia = db.Column(db.Text, nullable=True, default=None)
+    # -------------------
+    # METADATA
+    # -------------------
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    def serialize_simple(self):
+        return {
+            "id": self.id,
+            "gestor_asociado": self.gestor_asociado,
+            "apies": self.apies,
+            "tipo_estacion": self.tipo_estacion,
+            "conclucion_final": self.conclucion_final,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "respuesta_ia": self.respuesta_ia
+        }
+    def serialize(self):
+        return {
+            "id": self.id,
+
+            # SECCIÓN 1
+            "provincia_localidad": self.provincia_localidad,
+            "apies": self.apies,
+            "tipo_estacion": self.tipo_estacion,
+            "empleados_total": self.empleados_total,
+            "playa_personal": self.playa_personal,
+            "tienda_personal": self.tienda_personal,
+            "boxes_personal": self.boxes_personal,
+            "anios_operacion": self.anios_operacion,
+            "capacitaciones_anio": self.capacitaciones_anio,
+            "solo_aprendizaje": self.solo_aprendizaje,
+            "detalle_otras_cap": self.detalle_otras_cap,
+            "gestor_asociado": self.gestor_asociado,
+
+            # SECCIÓN 2
+            "nivel_seguridad": self.nivel_seguridad,
+            "preparacion_emergencia": self.preparacion_emergencia,
+            "mejoras_seguridad": self.mejoras_seguridad,
+            "nivel_bromatologia": self.nivel_bromatologia,
+            "mejoras_bromatologia": self.mejoras_bromatologia,
+            "frecuencia_accidentes": self.frecuencia_accidentes,
+            "situaciones_accidentes": self.situaciones_accidentes,
+            "otro_seguridad_playa": self.otro_seguridad_playa,
+            "otro_seguridad_tienda": self.otro_seguridad_tienda,
+            "otro_seguridad_boxes": self.otro_seguridad_boxes,
+            "otro_bromatologia": self.otro_bromatologia,
+            "otro_accidentes": self.otro_accidentes,
+
+            # SECCIÓN 3
+            "nivel_pilares": self.nivel_pilares,
+            "efectividad_comunicacion": self.efectividad_comunicacion,
+            "actitud_empatica": self.actitud_empatica,
+            "autonomia_reclamos": self.autonomia_reclamos,
+            "adaptacion_estilo": self.adaptacion_estilo,
+            "aspectos_atencion": self.aspectos_atencion,
+            "otro_aspectos_atencion": self.otro_aspectos_atencion,
+
+            # SECCIÓN 4
+            "conoce_playa": self.conoce_playa,
+            "conoce_tienda": self.conoce_tienda,
+            "conoce_boxes": self.conoce_boxes,
+            "conoce_digital": self.conoce_digital,
+            "ranking_temas": self.ranking_temas,
+
+            # SECCIÓN 5
+            "dominio_gestion": self.dominio_gestion,
+            "capacidad_analisis": self.capacidad_analisis,
+            "uso_herramientas_dig": self.uso_herramientas_dig,
+            "ranking_desafios": self.ranking_desafios,
+
+            # SECCIÓN 6
+            "liderazgo_efectivo": self.liderazgo_efectivo,
+            "frecuencia_feedback": self.frecuencia_feedback,
+            "habilidades_org": self.habilidades_org,
+            "estilo_liderazgo": self.estilo_liderazgo,
+            "ranking_fortalecer_lider": self.ranking_fortalecer_lider,
+            "interes_capacitacion": self.interes_capacitacion,
+            "temas_prioritarios": self.temas_prioritarios,
+            "otro_tema_prioritario": self.otro_tema_prioritario,
+            "sugerencias_finales": self.sugerencias_finales,
+
+            # EXTRA
+            "conclucion_final": self.conclucion_final,
+            "respuesta_ia": self.respuesta_ia,
+            # METADATA
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }

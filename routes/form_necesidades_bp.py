@@ -5,7 +5,7 @@ from logging_config import logger
 from reportlab.lib.pagesizes import letter
 import io, os, textwrap
 from dotenv import load_dotenv
-from models import FormularioNecesidades
+from models import FormularioNecesidades, DiagnosticoOperadores
 from database import db
 from utils.form_necesidades_utils import query_assistant
 import io
@@ -28,6 +28,8 @@ API_KEY = os.getenv('API_KEY')
 def check_api_key(api_key):
     return api_key == API_KEY
 
+
+#-----------------DEPRECADO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 @form_necesidades_bp.before_request
 def authorize():
     if request.method == 'OPTIONS':
@@ -369,3 +371,290 @@ def delete_necesidad():
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error al eliminar", "error": str(e)}), 500
+    
+#<<<<<<<<<<<<<<<<<<<<<<DEPRECADO----------------------------------------------
+
+
+#>>>>>>>>>>>NUEVOS >>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+@form_necesidades_bp.route("/diagnostico", methods=["POST"])
+def crear_diagnostico():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "No se recibió JSON"}), 400
+
+    nuevo = DiagnosticoOperadores(
+        provincia_localidad=data.get("provincia_localidad", ""),
+        apies=data.get("apies", ""),
+        tipo_estacion=data.get("tipo_estacion", ""),
+        empleados_total=data.get("empleados_total", ""),
+
+        playa_personal=data.get("playa_personal", ""),
+        tienda_personal=data.get("tienda_personal", ""),
+        boxes_personal=data.get("boxes_personal", ""),
+
+        anios_operacion=data.get("anios_operacion", ""),
+        capacitaciones_anio=data.get("capacitaciones_anio", ""),
+        solo_aprendizaje=data.get("solo_aprendizaje", ""),
+        detalle_otras_cap=data.get("detalle_otras_cap", ""),
+        gestor_asociado=data.get("gestor_asociado", ""),
+
+        nivel_seguridad=data.get("nivel_seguridad", ""),
+        preparacion_emergencia=data.get("preparacion_emergencia", ""),
+        mejoras_seguridad=json.dumps(data.get("mejoras_seguridad", [])),
+
+        nivel_bromatologia=data.get("nivel_bromatologia", ""),
+        mejoras_bromatologia=json.dumps(data.get("mejoras_bromatologia", [])),
+
+        frecuencia_accidentes=data.get("frecuencia_accidentes", ""),
+        situaciones_accidentes=json.dumps(data.get("situaciones_accidentes", [])),
+
+        otro_seguridad_playa=data.get("otro_seguridad_playa", ""),
+        otro_seguridad_tienda=data.get("otro_seguridad_tienda", ""),
+        otro_seguridad_boxes=data.get("otro_seguridad_boxes", ""),
+        otro_bromatologia=data.get("otro_bromatologia", ""),
+        otro_accidentes=data.get("otro_accidentes", ""),
+
+        nivel_pilares=data.get("nivel_pilares", ""),
+        efectividad_comunicacion=data.get("efectividad_comunicacion", ""),
+        actitud_empatica=data.get("actitud_empatica", ""),
+        autonomia_reclamos=data.get("autonomia_reclamos", ""),
+        adaptacion_estilo=data.get("adaptacion_estilo", ""),
+
+        aspectos_atencion=json.dumps(data.get("aspectos_atencion", [])),
+        otro_aspectos_atencion=data.get("otro_aspectos_atencion", ""),
+
+        conoce_playa=data.get("conoce_playa", ""),
+        conoce_tienda=data.get("conoce_tienda", ""),
+        conoce_boxes=data.get("conoce_boxes", ""),
+        conoce_digital=data.get("conoce_digital", ""),
+
+        ranking_temas=json.dumps(data.get("ranking_temas", [])),
+
+        dominio_gestion=data.get("dominio_gestion", ""),
+        capacidad_analisis=data.get("capacidad_analisis", ""),
+        uso_herramientas_dig=data.get("uso_herramientas_dig", ""),
+
+        ranking_desafios=json.dumps(data.get("ranking_desafios", [])),
+
+        liderazgo_efectivo=data.get("liderazgo_efectivo", ""),
+        frecuencia_feedback=data.get("frecuencia_feedback", ""),
+        habilidades_org=data.get("habilidades_org", ""),
+        estilo_liderazgo=data.get("estilo_liderazgo", ""),
+
+        ranking_fortalecer_lider=json.dumps(data.get("ranking_fortalecer_lider", [])),
+
+        interes_capacitacion=data.get("interes_capacitacion", ""),
+        temas_prioritarios=json.dumps(data.get("temas_prioritarios", [])),
+        otro_tema_prioritario=data.get("otro_tema_prioritario", ""),
+        sugerencias_finales=data.get("sugerencias_finales", "")
+    )
+
+    db.session.add(nuevo)
+    db.session.commit()
+
+    return jsonify(nuevo.serialize()), 201
+
+
+@form_necesidades_bp.route("/diagnostico/<int:id>", methods=["GET"])
+def obtener_diagnostico(id):
+    registro = DiagnosticoOperadores.query.get(id)
+
+    if not registro:
+        return jsonify({"error": "Registro no encontrado"}), 404
+
+    return jsonify(registro.serialize()), 200
+
+@form_necesidades_bp.route("/diagnostico", methods=["GET"])
+def listar_diagnosticos():
+    registros = DiagnosticoOperadores.query.order_by(DiagnosticoOperadores.created_at.desc()).all()
+    return jsonify([r.serialize() for r in registros]), 200
+
+
+@form_necesidades_bp.route("/diagnostico/conclusion", methods=["POST"])
+def guardar_conclusion():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "No se recibió JSON"}), 400
+
+    registro_id = data.get("id")
+    conclucion_final = data.get("conclucion_final")
+
+    if not registro_id:
+        return jsonify({"error": "Falta el id del registro"}), 400
+
+    registro = DiagnosticoOperadores.query.get(registro_id)
+
+    if not registro:
+        return jsonify({"error": "Registro no encontrado"}), 404
+
+    registro.conclucion_final = conclucion_final
+    db.session.commit()
+
+    return jsonify({
+        "message": "Conclusión guardada correctamente",
+        "registro": registro.serialize()
+    }), 200
+
+
+@form_necesidades_bp.route("/diagnostico/simple", methods=["GET"])
+def listar_diagnosticos_simple():
+    registros = DiagnosticoOperadores.query.order_by(
+        DiagnosticoOperadores.created_at.desc()
+    ).all()
+
+    return jsonify([r.serialize_simple() for r in registros]), 200
+
+@form_necesidades_bp.route("/diagnostico/eliminar", methods=["POST"])
+def eliminar_diagnostico():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "No se recibió JSON"}), 400
+
+    registro_id = data.get("id")
+    gestor_request = data.get("gestor_asociado")
+
+    if not registro_id or not gestor_request:
+        return jsonify({"error": "Faltan datos obligatorios"}), 400
+
+    registro = DiagnosticoOperadores.query.get(registro_id)
+
+    if not registro:
+        return jsonify({"error": "Registro no encontrado"}), 404
+
+    # Validación de permisos
+    if registro.gestor_asociado != gestor_request:
+        return jsonify({
+            "error": "El gestor asociado a este formulario tiene permitido borrarlo"
+        }), 403
+
+    db.session.delete(registro)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Registro eliminado correctamente",
+        "id": registro_id
+    }), 200
+
+
+@form_necesidades_bp.route("/diagnostico/ia/evaluar", methods=["POST"])
+def evaluar_diagnostico_con_ia():
+    try:
+        payload = request.get_json()
+
+        if not payload:
+            return jsonify({"error": "No se recibió JSON"}), 400
+
+        diagnostico_id = payload.get("id")
+
+        if not diagnostico_id:
+            return jsonify({"error": "Falta el id del diagnóstico"}), 400
+
+        # 1️⃣ Buscar diagnóstico
+        diagnostico = DiagnosticoOperadores.query.get(diagnostico_id)
+
+        if not diagnostico:
+            return jsonify({"error": "Diagnóstico no encontrado"}), 404
+
+        # 2️⃣ Armar texto del formulario
+        form_text = f"""
+DATOS GENERALES
+Provincia / Localidad: {diagnostico.provincia_localidad}
+APIES: {diagnostico.apies}
+Tipo de estación: {diagnostico.tipo_estacion}
+Cantidad total de empleados: {diagnostico.empleados_total}
+Gestor asociado: {diagnostico.gestor_asociado}
+
+SEGURIDAD Y CUMPLIMIENTO
+Nivel de seguridad general: {diagnostico.nivel_seguridad}
+Preparación ante emergencias: {diagnostico.preparacion_emergencia}
+Mejoras detectadas en seguridad: {diagnostico.mejoras_seguridad}
+
+BROMATOLOGÍA
+Nivel de bromatología: {diagnostico.nivel_bromatologia}
+Mejoras detectadas en bromatología: {diagnostico.mejoras_bromatologia}
+
+ACCIDENTES
+Frecuencia de accidentes: {diagnostico.frecuencia_accidentes}
+Situaciones reportadas: {diagnostico.situaciones_accidentes}
+
+EXPERIENCIA DEL CLIENTE
+Pilares de experiencia: {diagnostico.nivel_pilares}
+Efectividad de la comunicación: {diagnostico.efectividad_comunicacion}
+Actitud empática: {diagnostico.actitud_empatica}
+Autonomía en reclamos: {diagnostico.autonomia_reclamos}
+Adaptación al estilo del cliente: {diagnostico.adaptacion_estilo}
+
+CONOCIMIENTO
+Playa: {diagnostico.conoce_playa}
+Tienda: {diagnostico.conoce_tienda}
+Boxes: {diagnostico.conoce_boxes}
+Digital: {diagnostico.conoce_digital}
+
+GESTIÓN Y LIDERAZGO
+Dominio de gestión: {diagnostico.dominio_gestion}
+Capacidad de análisis: {diagnostico.capacidad_analisis}
+Uso de herramientas digitales: {diagnostico.uso_herramientas_dig}
+Liderazgo efectivo: {diagnostico.liderazgo_efectivo}
+Frecuencia de feedback: {diagnostico.frecuencia_feedback}
+Habilidades organizativas: {diagnostico.habilidades_org}
+Estilo de liderazgo: {diagnostico.estilo_liderazgo}
+
+SUGERENCIAS FINALES
+{diagnostico.sugerencias_finales}
+"""
+
+        # 3️⃣ Prompt final para la IA
+        evaluation_prompt = f"""
+Evaluá el siguiente diagnóstico de una estación de servicio YPF.
+
+Respondé EXCLUSIVAMENTE con el siguiente formato:
+
+[DIAGNOSTICO_GENERAL]
+Texto claro y profesional.
+
+[FORTALEZAS]
+- Punto 1
+- Punto 2
+
+[DEBILIDADES]
+- Punto 1
+- Punto 2
+
+[RECOMENDACIONES]
+- Recomendación 1
+- Recomendación 2
+
+[CAPACITACIONES_SUGERIDAS]
+- Curso 1
+- Curso 2
+
+INFORMACIÓN DEL FORMULARIO:
+{form_text}
+"""
+
+        # 4️⃣ Llamar al assistant
+        respuesta_ia = query_assistant(evaluation_prompt)
+
+        # 5️⃣ Guardar respuesta IA
+        diagnostico.respuesta_ia = respuesta_ia
+        db.session.commit()
+
+        # 6️⃣ Responder al frontend
+        return jsonify({
+            "status": "ok",
+            "diagnostico_id": diagnostico.id,
+            "conclusion_ia": respuesta_ia
+        }), 200
+
+    except Exception as e:
+        logger.exception("Error evaluando diagnóstico con IA")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+

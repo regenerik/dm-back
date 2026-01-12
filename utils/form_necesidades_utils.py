@@ -17,11 +17,11 @@ HEADERS = {
     "OpenAI-Beta": "assistants=v2"
 }
 
-def query_assistant(prompt: str, form_id: int, thread_id: Optional[str] = None) -> str:
+def query_assistant(prompt: str, thread_id: Optional[str] = None) -> str:
     """
-    Envía un prompt al assistant, espera la respuesta,
-    la guarda en FormularioNecesidades.respuesta_ia
-    y devuelve el texto.
+    Envía un prompt al assistant y devuelve únicamente
+    el texto de respuesta generado por la IA.
+    No guarda nada en base de datos.
     """
 
     if thread_id:
@@ -82,10 +82,5 @@ def query_assistant(prompt: str, form_id: int, thread_id: Optional[str] = None) 
         if part.get("type") == "text":
             respuesta += part.get("text", {}).get("value", "")
 
-    # 👉 Guardar respuesta en el registro
-    form = FormularioNecesidades.query.get(form_id)
-    if form:
-        form.respuesta_ia = respuesta.strip()
-        db.session.commit()
-
     return respuesta.strip()
+
