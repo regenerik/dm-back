@@ -379,7 +379,7 @@ def delete_necesidad():
 
 @form_necesidades_bp.route("/diagnostico", methods=["POST"])
 def crear_diagnostico():
-    data = request.get_json()
+    data = request.get_json(force=True)
 
     if not data:
         return jsonify({"error": "No se recibió JSON"}), 400
