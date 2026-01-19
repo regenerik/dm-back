@@ -658,3 +658,95 @@ INFORMACIÓN DEL FORMULARIO:
         }), 500
 
 
+@form_necesidades_bp.route("/diagnostico/<int:id>", methods=["PUT"])
+def actualizar_diagnostico(id):
+    data = request.get_json(force=True)
+
+    if not data:
+        return jsonify({"error": "No se recibió JSON"}), 400
+
+    diagnostico = DiagnosticoOperadores.query.get(id)
+
+    if not diagnostico:
+        return jsonify({"error": "Diagnóstico no encontrado"}), 404
+
+    # --- Datos generales ---
+    diagnostico.provincia_localidad = data.get("provincia_localidad", "")
+    diagnostico.apies = data.get("apies", "")
+    diagnostico.tipo_estacion = data.get("tipo_estacion", "")
+    diagnostico.empleados_total = data.get("empleados_total", "")
+
+    diagnostico.playa_personal = data.get("playa_personal", "")
+    diagnostico.tienda_personal = data.get("tienda_personal", "")
+    diagnostico.boxes_personal = data.get("boxes_personal", "")
+
+    diagnostico.anios_operacion = data.get("anios_operacion", "")
+    diagnostico.capacitaciones_anio = data.get("capacitaciones_anio", "")
+    diagnostico.solo_aprendizaje = data.get("solo_aprendizaje", "")
+    diagnostico.detalle_otras_cap = data.get("detalle_otras_cap", "")
+    diagnostico.gestor_asociado = data.get("gestor_asociado", "")
+
+    # --- Seguridad ---
+    diagnostico.nivel_seguridad = data.get("nivel_seguridad", "")
+    diagnostico.preparacion_emergencia = data.get("preparacion_emergencia", "")
+    diagnostico.mejoras_seguridad = json.dumps(data.get("mejoras_seguridad", []))
+
+    # --- Bromatología ---
+    diagnostico.nivel_bromatologia = data.get("nivel_bromatologia", "")
+    diagnostico.mejoras_bromatologia = json.dumps(data.get("mejoras_bromatologia", []))
+
+    # --- Accidentes ---
+    diagnostico.frecuencia_accidentes = data.get("frecuencia_accidentes", "")
+    diagnostico.situaciones_accidentes = json.dumps(data.get("situaciones_accidentes", []))
+
+    diagnostico.otro_seguridad_playa = data.get("otro_seguridad_playa", "")
+    diagnostico.otro_seguridad_tienda = data.get("otro_seguridad_tienda", "")
+    diagnostico.otro_seguridad_boxes = data.get("otro_seguridad_boxes", "")
+    diagnostico.otro_bromatologia = data.get("otro_bromatologia", "")
+    diagnostico.otro_accidentes = data.get("otro_accidentes", "")
+
+    # --- Experiencia cliente ---
+    diagnostico.nivel_pilares = data.get("nivel_pilares", "")
+    diagnostico.efectividad_comunicacion = data.get("efectividad_comunicacion", "")
+    diagnostico.actitud_empatica = data.get("actitud_empatica", "")
+    diagnostico.autonomia_reclamos = data.get("autonomia_reclamos", "")
+    diagnostico.adaptacion_estilo = data.get("adaptacion_estilo", "")
+
+    diagnostico.aspectos_atencion = json.dumps(data.get("aspectos_atencion", []))
+    diagnostico.otro_aspectos_atencion = data.get("otro_aspectos_atencion", "")
+
+    # --- Conocimiento ---
+    diagnostico.conoce_playa = data.get("conoce_playa", "")
+    diagnostico.conoce_tienda = data.get("conoce_tienda", "")
+    diagnostico.conoce_boxes = data.get("conoce_boxes", "")
+    diagnostico.conoce_digital = data.get("conoce_digital", "")
+
+    diagnostico.ranking_temas = json.dumps(data.get("ranking_temas", []))
+
+    # --- Gestión ---
+    diagnostico.dominio_gestion = data.get("dominio_gestion", "")
+    diagnostico.capacidad_analisis = data.get("capacidad_analisis", "")
+    diagnostico.uso_herramientas_dig = data.get("uso_herramientas_dig", "")
+
+    diagnostico.ranking_desafios = json.dumps(data.get("ranking_desafios", []))
+
+    # --- Liderazgo ---
+    diagnostico.liderazgo_efectivo = data.get("liderazgo_efectivo", "")
+    diagnostico.frecuencia_feedback = data.get("frecuencia_feedback", "")
+    diagnostico.habilidades_org = data.get("habilidades_org", "")
+    diagnostico.estilo_liderazgo = data.get("estilo_liderazgo", "")
+
+    diagnostico.ranking_fortalecer_lider = json.dumps(
+        data.get("ranking_fortalecer_lider", [])
+    )
+
+    # --- Capacitación futura ---
+    diagnostico.interes_capacitacion = data.get("interes_capacitacion", "")
+    diagnostico.temas_prioritarios = json.dumps(data.get("temas_prioritarios", []))
+    diagnostico.otro_tema_prioritario = data.get("otro_tema_prioritario", "")
+    diagnostico.sugerencias_finales = data.get("sugerencias_finales", "")
+    diagnostico.respuesta_ia = None
+
+    db.session.commit()
+
+    return jsonify(diagnostico.serialize()), 200
