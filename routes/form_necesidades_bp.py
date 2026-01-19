@@ -5,7 +5,7 @@ from logging_config import logger
 from reportlab.lib.pagesizes import letter
 import io, os, textwrap
 from dotenv import load_dotenv
-from models import FormularioNecesidades, DiagnosticoOperadores
+from models import FormularioNecesidades, DiagnosticoOperadores, User
 from database import db
 from utils.form_necesidades_utils import query_assistant
 import io
