@@ -525,19 +525,30 @@ def eliminar_diagnostico():
     if not registro:
         return jsonify({"error": "Registro no encontrado"}), 404
 
-    # Validación de permisos
-    if registro.gestor_asociado != gestor_request:
+    # 1️⃣ Si es el mismo gestor → OK
+    if registro.gestor_asociado == gestor_request:
+        db.session.delete(registro)
+        db.session.commit()
         return jsonify({
-            "error": "El gestor asociado a este formulario tiene permitido borrarlo"
-        }), 403
+            "message": "Registro eliminado correctamente",
+            "id": registro_id
+        }), 200
 
-    db.session.delete(registro)
-    db.session.commit()
+    # 2️⃣ Si NO es el gestor, verificamos si es admin
+    usuario = User.query.filter_by(name=gestor_request).first()
 
+    if usuario and usuario.admin is True:
+        db.session.delete(registro)
+        db.session.commit()
+        return jsonify({
+            "message": "Registro eliminado por administrador",
+            "id": registro_id
+        }), 200
+
+    # ❌ No es gestor ni admin
     return jsonify({
-        "message": "Registro eliminado correctamente",
-        "id": registro_id
-    }), 200
+        "error": "No tenés permisos para eliminar este diagnóstico"
+    }), 403
 
 
 @form_necesidades_bp.route("/diagnostico/ia/evaluar", methods=["POST"])
