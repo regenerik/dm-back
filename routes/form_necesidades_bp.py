@@ -1096,6 +1096,7 @@ def actualizar_diagnostico(id):
     diagnostico.temas_prioritarios = json.dumps(data.get("temas_prioritarios", []))
     diagnostico.otro_tema_prioritario = data.get("otro_tema_prioritario", "")
     diagnostico.sugerencias_finales = data.get("sugerencias_finales", "")
+    
     diagnostico.respuesta_ia = None
 
     db.session.commit()
