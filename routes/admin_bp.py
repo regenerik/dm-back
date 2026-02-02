@@ -1,7 +1,7 @@
 from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app, Response # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User, TotalComents, Instructions, ReportesDataMentor, HistoryUserCourses, FormularioGestor  , Sector, UserSectorAccess                   # importar tabla "User" de models
+from models import User, TotalComents, Instructions, ReportesDataMentor, HistoryUserCourses, FormularioGestor  , Sector, UserSectorAccess,Curriculos, JobDescription, DiagnosticoOperadores          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
 from logging_config import logger
@@ -456,17 +456,26 @@ RESTORE_DB_KEY = os.getenv("RESTORE_DB_KEY")
 def get_buckup():
     logger.info("DEBUG: Iniciando el proceso de backup.")
     try:
-        # Serializar los datos de las tablas que tienen el método serialize()
         backup_data = {
+            # Tablas que ya venías exportando
             "Instructions": [item.serialize() for item in Instructions.query.all()],
             "ReportesDataMentor": [item.serialize() for item in ReportesDataMentor.query.all()],
             "HistoryUserCourses": [item.serialize() for item in HistoryUserCourses.query.all()],
-            "User": [],  # Serialización manual
-            "FormularioGestor": []  # Serialización manual
-        }
-        logger.info("DEBUG: Datos de tablas con .serialize() serializados.")
+            "User": [],  # manual
+            "FormularioGestor": [],  # manual (sin firma_file)
 
-        # Serialización manual de la tabla User (sin método .serialize())
+            # Nuevas
+            "Sector": [],
+            "UserSectorAccess": [],
+            "JobDescription": [],
+            "Curriculos": [],
+            "DiagnosticoOperadores": [],
+        }
+        logger.info("DEBUG: Tablas con .serialize() serializadas (base).")
+
+        # -------------------------
+        # User (manual)
+        # -------------------------
         for user_obj in User.query.all():
             backup_data["User"].append({
                 "id": user_obj.id,
@@ -479,8 +488,10 @@ def get_buckup():
                 "status": user_obj.status,
             })
         logger.info("DEBUG: Serialización de User completada.")
-        
-        # Serialización manual de FormularioGestor (excluyendo datos binarios)
+
+        # -------------------------
+        # FormularioGestor (manual, excluyendo firma_file binario)
+        # -------------------------
         for fg_obj in FormularioGestor.query.all():
             backup_data["FormularioGestor"].append({
                 "id": fg_obj.id,
@@ -510,26 +521,80 @@ def get_buckup():
             })
         logger.info("DEBUG: Serialización de FormularioGestor completada (firma_file excluida).")
 
-        # Guardar el JSON en un archivo temporal
+        # -------------------------
+        # Sector (manual)
+        # -------------------------
+        for s in Sector.query.all():
+            backup_data["Sector"].append({
+                "id": s.id,
+                "key": s.key,
+                "label": s.label,
+                "description": s.description,
+                "default_enabled": s.default_enabled,
+            })
+        logger.info("DEBUG: Tabla Sector serializada.")
+
+        # -------------------------
+        # UserSectorAccess (manual)
+        # -------------------------
+        for usa in UserSectorAccess.query.all():
+            backup_data["UserSectorAccess"].append({
+                "id": usa.id,
+                "user_dni": usa.user_dni,
+                "sector_id": usa.sector_id,
+                "enabled": usa.enabled,
+            })
+        logger.info("DEBUG: Tabla UserSectorAccess serializada.")
+
+        # -------------------------
+        # JobDescription (manual)
+        # -------------------------
+        for jd in JobDescription.query.all():
+            backup_data["JobDescription"].append({
+                "id": jd.id,
+                "titulo": jd.titulo,
+                "job_description": jd.job_description,
+                "email": jd.email,
+                "created_date": jd.created_date.isoformat() if jd.created_date else None,
+            })
+        logger.info("DEBUG: Tabla JobDescription serializada.")
+
+        # -------------------------
+        # Curriculos (tiene serialize())
+        # -------------------------
+        backup_data["Curriculos"] = [c.serialize() for c in Curriculos.query.all()]
+        logger.info("DEBUG: Tabla Curriculos serializada.")
+
+        # -------------------------
+        # DiagnosticoOperadores (tiene serialize())
+        # -------------------------
+        backup_data["DiagnosticoOperadores"] = [d.serialize() for d in DiagnosticoOperadores.query.all()]
+        logger.info("DEBUG: Tabla DiagnosticoOperadores serializada.")
+
+        # -------------------------
+        # Archivo temporal + send_file
+        # -------------------------
         backup_filename = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
-        temp_file_path = None
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as temp_file:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, encoding="utf-8") as temp_file:
             json.dump(backup_data, temp_file, indent=4, ensure_ascii=False)
             temp_file_path = temp_file.name
-        
+
         logger.info(f"DEBUG: Archivo temporal creado en: {temp_file_path}")
 
-        # Enviar el archivo como respuesta
         try:
-            response = send_file(temp_file_path, as_attachment=True, mimetype='application/json', download_name=backup_filename)
+            response = send_file(
+                temp_file_path,
+                as_attachment=True,
+                mimetype="application/json",
+                download_name=backup_filename
+            )
             logger.info("DEBUG: Archivo enviado al cliente.")
             return response
         finally:
             os.remove(temp_file_path)
             logger.info(f"DEBUG: Archivo temporal {temp_file_path} eliminado.")
 
-    except Exception as e:
+    except (SQLAlchemyError, Exception) as e:
         logger.error(f"ERROR: Fallo inesperado en get_buckup: {str(e)}")
         db.session.rollback()
         return jsonify({"error": f"Error al generar el backup: {str(e)}"}), 500
@@ -537,82 +602,188 @@ def get_buckup():
 @admin_bp.route("/restaurar_db", methods=["POST"])
 def restaurar_db():
     logger.info("DEBUG: Iniciando el proceso de restauración.")
+    restore_timestamp = datetime.utcnow().isoformat()
+
     try:
-        # 1. Validar la clave secreta
+        # 1) Validar clave secreta
         password = request.form.get("password")
         if not password or password.strip() != RESTORE_DB_KEY:
             logger.error("ERROR: Clave de restauración incorrecta o no proporcionada.")
             return jsonify({"error": "Clave de restauración incorrecta."}), 401
-        
         logger.info("DEBUG: Clave de restauración validada.")
-        
-        # 2. Recibir y cargar el archivo de backup
+
+        # 2) Recibir y cargar el archivo de backup
         file = request.files.get("file")
         if not file:
             logger.error("ERROR: No se recibió ningún archivo.")
             return jsonify({"error": "No se recibió ningún archivo."}), 400
-        
+
         logger.info("DEBUG: Archivo recibido. Cargando datos...")
         backup_data = json.load(file)
-        logger.info("DEBUG: Datos del backup cargados con éxito. Vaciando tablas.")
+        logger.info("DEBUG: Datos del backup cargados con éxito.")
 
-        # 3. Vaciar las tablas existentes para evitar conflictos de IDs
-        # Usamos DELETE FROM para eliminar todas las filas. NO reiniciamos la secuencia.
-        db.session.execute(text("DELETE FROM instructions"))
-        db.session.execute(text("DELETE FROM user"))
-        db.session.execute(text("DELETE FROM reportes_data_mentor"))
-        db.session.execute(text("DELETE FROM history_user_courses"))
-        db.session.execute(text("DELETE FROM formulario_gestor"))
-        
-        db.session.commit()
-        logger.info("DEBUG: Tablas vaciadas. Iniciando restauración de datos con IDs originales.")
-
-        # 4. Función genérica para restaurar datos con IDs originales
-        def restore_table(model, data):
-            for item_data in data:
-                # Se mantiene el 'id' en los datos
-                
-                # Manejar fechas
-                for key, value in item_data.items():
-                    if isinstance(value, str):
+        # ---------------------------------------------------------
+        # Helpers
+        # ---------------------------------------------------------
+        def coerce_known_dates(item_data: dict, date_fields: set):
+            """Convierte solo campos de fecha conocidos (evita romper strings normales)."""
+            for field in date_fields:
+                if field in item_data and isinstance(item_data[field], str) and item_data[field]:
+                    val = item_data[field]
+                    try:
+                        item_data[field] = datetime.fromisoformat(val)
+                    except (ValueError, TypeError):
                         try:
-                            # Intenta convertir la cadena a datetime
-                            item_data[key] = datetime.fromisoformat(value)
+                            item_data[field] = date.fromisoformat(val)
                         except (ValueError, TypeError):
-                            try:
-                                # Si falla, intenta convertir a date
-                                item_data[key] = date.fromisoformat(value)
-                            except (ValueError, TypeError):
-                                pass
+                            pass
+            return item_data
 
-                # Se crea la nueva instancia con todos los datos, incluyendo el ID
-                new_item = model(**item_data)
-                db.session.add(new_item)
-                
-        # 5. Restaurar cada tabla
-        restore_table(Instructions, backup_data.get("Instructions", []))
-        logger.info("DEBUG: Tabla Instructions restaurada.")
-        restore_table(User, backup_data.get("User", []))
-        logger.info("DEBUG: Tabla User restaurada.")
-        restore_table(ReportesDataMentor, backup_data.get("ReportesDataMentor", []))
-        logger.info("DEBUG: Tabla ReportesDataMentor restaurada.")
-        restore_table(HistoryUserCourses, backup_data.get("HistoryUserCourses", []))
-        logger.info("DEBUG: Tabla HistoryUserCourses restaurada.")
-        restore_table(FormularioGestor, backup_data.get("FormularioGestor", []))
-        logger.info("DEBUG: Tabla FormularioGestor restaurada.")
+        def restore_table(model, data: list, date_fields: set = None):
+            """Inserta todo lo del backup (manteniendo IDs)."""
+            date_fields = date_fields or set()
+            for raw in data:
+                item = dict(raw)  # copy
+                coerce_known_dates(item, date_fields)
+                db.session.add(model(**item))
 
-        # 6. Commit de la sesión
+        def conditional_wipe(table_sql: str, data: list, label: str):
+            """
+            Borra tabla SOLO si data tiene contenido.
+            Si data viene vacía, no toca nada.
+            """
+            if data and len(data) > 0:
+                logger.info(f"DEBUG: {label} -> data={len(data)}. Borrando tabla {table_sql}...")
+                db.session.execute(text(f"DELETE FROM {table_sql}"))
+                logger.info(f"DEBUG: {label} -> tabla vaciada.")
+                return True
+            else:
+                logger.info(f"DEBUG: {label} -> lista vacía. NO se borra {table_sql}.")
+                return False
+
+        # ---------------------------------------------------------
+        # 3) Tomar listas del backup (todas)
+        # ---------------------------------------------------------
+        data_instructions          = backup_data.get("Instructions", [])
+        data_users                 = backup_data.get("User", [])
+        data_reportes_dm           = backup_data.get("ReportesDataMentor", [])
+        data_history_user_courses  = backup_data.get("HistoryUserCourses", [])
+        data_formulario_gestor     = backup_data.get("FormularioGestor", [])
+
+        data_sectors               = backup_data.get("Sector", [])
+        data_user_sector_access    = backup_data.get("UserSectorAccess", [])
+        data_job_description       = backup_data.get("JobDescription", [])
+        data_curriculos            = backup_data.get("Curriculos", [])
+        data_diagnostico_oper      = backup_data.get("DiagnosticoOperadores", [])
+
+        # ---------------------------------------------------------
+        # 4) Borrado condicional (orden: hijos -> padres)
+        # ---------------------------------------------------------
+        # OJO: si una lista viene vacía, NO tocamos esa tabla.
+        # Borramos dependientes antes que padres para no chocar con FK.
+        wiped_user_sector_access   = conditional_wipe("user_sector_access", data_user_sector_access, "UserSectorAccess")
+        wiped_curriculos           = conditional_wipe("curriculos", data_curriculos, "Curriculos")
+
+        wiped_history              = conditional_wipe("history_user_courses", data_history_user_courses, "HistoryUserCourses")
+        wiped_reportes_dm          = conditional_wipe("reportes_data_mentor", data_reportes_dm, "ReportesDataMentor")
+        wiped_formulario_gestor    = conditional_wipe("formulario_gestor", data_formulario_gestor, "FormularioGestor")
+        wiped_diagnostico_oper     = conditional_wipe("diagnostico_operadores", data_diagnostico_oper, "DiagnosticoOperadores")
+        wiped_instructions         = conditional_wipe("instructions", data_instructions, "Instructions")
+
+        # Padres
+        wiped_job_description      = conditional_wipe("job_description", data_job_description, "JobDescription")
+        wiped_sectors              = conditional_wipe("sectors", data_sectors, "Sector")
+
+        # Users al final (y SOLO si viene lista no vacía, como pediste)
+        wiped_users                = conditional_wipe("\"user\"", data_users, "User")  # por si el nombre es reservado
+
+        # Commit del wipe (si querés atomicidad total, podés sacarlo y dejar 1 solo commit al final)
         db.session.commit()
-        logger.info("DEBUG: Commit a la base de datos realizado. Proceso completado.")
-        return jsonify({"message": "Base de datos restaurada con éxito."}), 200
+        logger.info("DEBUG: Borrados condicionales confirmados.")
+
+        # ---------------------------------------------------------
+        # 5) Inserción (orden: padres -> hijos)
+        # ---------------------------------------------------------
+        # Sectores primero (para UserSectorAccess)
+        if wiped_sectors:
+            restore_table(Sector, data_sectors)
+            logger.info("DEBUG: Tabla Sector restaurada.")
+
+        # Users primero (para muchas otras posibles FK)
+        if wiped_users:
+            restore_table(User, data_users)
+            logger.info("DEBUG: Tabla User restaurada.")
+
+        # JobDescription antes que Curriculos (FK)
+        if wiped_job_description:
+            restore_table(JobDescription, data_job_description, date_fields={"created_date"})
+            logger.info("DEBUG: Tabla JobDescription restaurada.")
+
+        if wiped_curriculos:
+            restore_table(Curriculos, data_curriculos, date_fields={"created_date"})
+            logger.info("DEBUG: Tabla Curriculos restaurada.")
+
+        # Resto (sin FK sensibles conocidas, pero igual ordenadito)
+        if wiped_instructions:
+            restore_table(Instructions, data_instructions)
+            logger.info("DEBUG: Tabla Instructions restaurada.")
+
+        if wiped_reportes_dm:
+            restore_table(ReportesDataMentor, data_reportes_dm)
+            logger.info("DEBUG: Tabla ReportesDataMentor restaurada.")
+
+        if wiped_history:
+            restore_table(HistoryUserCourses, data_history_user_courses)
+            logger.info("DEBUG: Tabla HistoryUserCourses restaurada.")
+
+        if wiped_formulario_gestor:
+            restore_table(FormularioGestor, data_formulario_gestor, date_fields={"fecha_usuario", "creado_en"})
+            logger.info("DEBUG: Tabla FormularioGestor restaurada.")
+
+        if wiped_diagnostico_oper:
+            restore_table(DiagnosticoOperadores, data_diagnostico_oper, date_fields={"created_at"})
+            logger.info("DEBUG: Tabla DiagnosticoOperadores restaurada.")
+
+        # UserSectorAccess al final (depende de User + Sector)
+        if wiped_user_sector_access:
+            restore_table(UserSectorAccess, data_user_sector_access)
+            logger.info("DEBUG: Tabla UserSectorAccess restaurada.")
+
+        # ---------------------------------------------------------
+        # 6) Commit final
+        # ---------------------------------------------------------
+        db.session.commit()
+        logger.info(f"DEBUG: Restauración completada. restored_at={restore_timestamp}")
+
+        return jsonify({
+            "message": "Base de datos restaurada con éxito (restauración puntual, borrado condicional).",
+            "restored_at_utc": restore_timestamp,
+            "tables_restored": {
+                "Sector": wiped_sectors,
+                "User": wiped_users,
+                "JobDescription": wiped_job_description,
+                "Curriculos": wiped_curriculos,
+                "Instructions": wiped_instructions,
+                "ReportesDataMentor": wiped_reportes_dm,
+                "HistoryUserCourses": wiped_history,
+                "FormularioGestor": wiped_formulario_gestor,
+                "DiagnosticoOperadores": wiped_diagnostico_oper,
+                "UserSectorAccess": wiped_user_sector_access,
+            }
+        }), 200
 
     except SQLAlchemyError as e:
         logger.error(f"ERROR: Fallo de SQLAlchemy durante la restauración: {str(e)}")
         db.session.rollback()
-        return jsonify({"error": f"Fallo de la base de datos: {str(e)}"}), 500
+        return jsonify({
+            "error": f"Fallo de la base de datos: {str(e)}",
+            "restored_at_utc": restore_timestamp
+        }), 500
 
     except Exception as e:
         logger.error(f"ERROR: Fallo inesperado en restaurar_db: {str(e)}")
         db.session.rollback()
-        return jsonify({"error": f"Fallo inesperado: {str(e)}"}), 500
-    
+        return jsonify({
+            "error": f"Fallo inesperado: {str(e)}",
+            "restored_at_utc": restore_timestamp
+        }), 500
