@@ -40,12 +40,6 @@ SECTORES_BASE = [
         "description": "Formulario para capturar recomendaciones",
         "default_enabled": False,
     },
-    {
-        "key": "admin_settings",
-        "label": "Ajustes administrador",
-        "description": "Panel de ajustes (igual esto debería depender de admin)",
-        "default_enabled": False,
-    },
 ]
 
 
