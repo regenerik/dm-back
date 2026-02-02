@@ -17,6 +17,7 @@ from datetime import datetime
 import pandas as pd
 from io import BytesIO
 import re
+from sqlalchemy.inspection import inspect
 
 load_dotenv()
 
@@ -555,74 +556,251 @@ def eliminar_diagnostico():
 def evaluar_diagnostico_con_ia():
     try:
         payload = request.get_json()
-
         if not payload:
             return jsonify({"error": "No se recibió JSON"}), 400
 
         diagnostico_id = payload.get("id")
-
         if not diagnostico_id:
             return jsonify({"error": "Falta el id del diagnóstico"}), 400
 
-        # 1️⃣ Buscar diagnóstico
         diagnostico = DiagnosticoOperadores.query.get(diagnostico_id)
-
         if not diagnostico:
             return jsonify({"error": "Diagnóstico no encontrado"}), 404
 
-        # 2️⃣ Armar texto del formulario
-        form_text = f"""
-DATOS GENERALES
-Provincia / Localidad: {diagnostico.provincia_localidad}
-APIES: {diagnostico.apies}
-Tipo de estación: {diagnostico.tipo_estacion}
-Cantidad total de empleados: {diagnostico.empleados_total}
-Gestor asociado: {diagnostico.gestor_asociado}
+        # -----------------------------
+        # Helpers
+        # -----------------------------
+        def try_parse_json(value):
+            """Si viene como string JSON, lo parsea. Si ya es list/dict, lo devuelve tal cual."""
+            if value is None:
+                return None
+            if isinstance(value, (list, dict)):
+                return value
+            if isinstance(value, str):
+                s = value.strip()
+                if (s.startswith("[") and s.endswith("]")) or (s.startswith("{") and s.endswith("}")):
+                    try:
+                        return json.loads(s)
+                    except Exception:
+                        return value
+            return value
 
-SEGURIDAD Y CUMPLIMIENTO
-Nivel de seguridad general: {diagnostico.nivel_seguridad}
-Preparación ante emergencias: {diagnostico.preparacion_emergencia}
-Mejoras detectadas en seguridad: {diagnostico.mejoras_seguridad}
+        def fmt_value(value):
+            """Formatea listas/rankings lindo para texto."""
+            v = try_parse_json(value)
+            if v is None or v == "":
+                return "-"
+            if isinstance(v, list):
+                # ranking arrays suelen ser [{id,label}, ...]
+                if len(v) > 0 and isinstance(v[0], dict):
+                    labels = []
+                    for item in v:
+                        label = item.get("label") if isinstance(item, dict) else str(item)
+                        labels.append(label)
+                    return "\n" + "\n".join([f"- {x}" for x in labels]) if labels else "-"
+                return "\n" + "\n".join([f"- {str(x)}" for x in v]) if v else "-"
+            if isinstance(v, dict):
+                return json.dumps(v, ensure_ascii=False, indent=2)
+            return str(v)
 
-BROMATOLOGÍA
-Nivel de bromatología: {diagnostico.nivel_bromatologia}
-Mejoras detectadas en bromatología: {diagnostico.mejoras_bromatologia}
+        def model_to_dict(model):
+            """Toma TODAS las columnas del modelo (sin hardcodear) y devuelve dict."""
+            mapper = inspect(model.__class__)
+            data = {}
+            for col in mapper.columns:
+                key = col.key
+                data[key] = getattr(model, key)
+            return data
 
-ACCIDENTES
-Frecuencia de accidentes: {diagnostico.frecuencia_accidentes}
-Situaciones reportadas: {diagnostico.situaciones_accidentes}
+        def to_int_or_none(x):
+            if x is None:
+                return None
+            try:
+                # por si viene "4" o 4
+                return int(str(x).strip())
+            except Exception:
+                return None
 
-EXPERIENCIA DEL CLIENTE
-Pilares de experiencia: {diagnostico.nivel_pilares}
-Efectividad de la comunicación: {diagnostico.efectividad_comunicacion}
-Actitud empática: {diagnostico.actitud_empatica}
-Autonomía en reclamos: {diagnostico.autonomia_reclamos}
-Adaptación al estilo del cliente: {diagnostico.adaptacion_estilo}
+        # -----------------------------
+        # 1) Traer TODOS los datos
+        # -----------------------------
+        d = model_to_dict(diagnostico)
 
-CONOCIMIENTO
-Playa: {diagnostico.conoce_playa}
-Tienda: {diagnostico.conoce_tienda}
-Boxes: {diagnostico.conoce_boxes}
-Digital: {diagnostico.conoce_digital}
+        # -----------------------------
+        # 2) Definir campos por sector
+        #    (acá sí listamos para ordenar el texto; pero igual si te olvidás algo,
+        #     lo metemos al final en "OTROS_DATOS" y no se pierde)
+        # -----------------------------
+        SECTORES = {
+            "SEGURIDAD Y CUMPLIMIENTO": [
+                "nivel_seguridad",
+                "preparacion_emergencia",
+                "mejoras_seguridad",
+                "otro_seguridad_playa",
+                "otro_seguridad_tienda",
+                "otro_seguridad_boxes",
+                "nivel_bromatologia",
+                "mejoras_bromatologia",
+                "otro_bromatologia",
+                "frecuencia_accidentes",
+                "situaciones_accidentes",
+                "otro_accidentes",
+            ],
+            "EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN": [
+                "nivel_pilares",
+                "efectividad_comunicacion",
+                "actitud_empatica",
+                "autonomia_reclamos",
+                "adaptacion_estilo",
+                "aspectos_atencion",
+                "otro_aspectos_atencion",
+            ],
+            "CONOCIMIENTO Y RANKING": [
+                "conoce_playa",
+                "conoce_tienda",
+                "conoce_boxes",
+                "conoce_digital",
+                "ranking_temas",
+            ],
+            "GESTIÓN DE LA EESS Y REPUTACIÓN DIGITAL": [
+                "dominio_gestion",
+                "capacidad_analisis",
+                "uso_herramientas_dig",
+                "ranking_desafios",
+            ],
+            "LIDERAZGO Y GESTIÓN DE EQUIPOS": [
+                "liderazgo_efectivo",
+                "frecuencia_feedback",
+                "habilidades_org",
+                "estilo_liderazgo",
+                "ranking_fortalecer_lider",
+                "interes_capacitacion",
+                "temas_prioritarios",
+                "otro_tema_prioritario",
+            ],
+        }
 
-GESTIÓN Y LIDERAZGO
-Dominio de gestión: {diagnostico.dominio_gestion}
-Capacidad de análisis: {diagnostico.capacidad_analisis}
-Uso de herramientas digitales: {diagnostico.uso_herramientas_dig}
-Liderazgo efectivo: {diagnostico.liderazgo_efectivo}
-Frecuencia de feedback: {diagnostico.frecuencia_feedback}
-Habilidades organizativas: {diagnostico.habilidades_org}
-Estilo de liderazgo: {diagnostico.estilo_liderazgo}
+        # Datos generales extra que antes no estabas mandando completo
+        DATOS_GENERALES = [
+            "provincia_localidad",
+            "apies",
+            "tipo_estacion",
+            "empleados_total",
+            "gestor_asociado",
+            "playa_personal",
+            "tienda_personal",
+            "boxes_personal",
+            "anios_operacion",
+            "capacitaciones_anio",
+            "solo_aprendizaje",
+            "detalle_otras_cap",
+            "sugerencias_finales",
+        ]
 
-SUGERENCIAS FINALES
-{diagnostico.sugerencias_finales}
-"""
+        # -----------------------------
+        # 3) Calcular "ítems bajos" (numéricos < 4) por sector
+        # -----------------------------
+        # Solo algunos campos son realmente numéricos (escala 1-5).
+        NUMERICOS_POR_SECTOR = {
+            "SEGURIDAD Y CUMPLIMIENTO": [
+                "nivel_seguridad",
+                "preparacion_emergencia",
+                "nivel_bromatologia",
+            ],
+            "EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN": [
+                "nivel_pilares",
+                "efectividad_comunicacion",
+                "actitud_empatica",
+                "autonomia_reclamos",
+                "adaptacion_estilo",
+            ],
+            "CONOCIMIENTO Y RANKING": [
+                "conoce_playa",
+                "conoce_tienda",
+                "conoce_boxes",
+                "conoce_digital",
+            ],
+            "GESTIÓN DE LA EESS Y REPUTACIÓN DIGITAL": [
+                "dominio_gestion",
+                "capacidad_analisis",
+                "uso_herramientas_dig",
+            ],
+            "LIDERAZGO Y GESTIÓN DE EQUIPOS": [
+                "liderazgo_efectivo",
+                "habilidades_org",
+                "interes_capacitacion",
+                # frecuencia_feedback y estilo_liderazgo no son numéricos
+            ],
+        }
 
-        # 3️⃣ Prompt final para la IA
+        bajos_por_sector = {}
+        for sector, campos in NUMERICOS_POR_SECTOR.items():
+            bajos = []
+            for campo in campos:
+                val = to_int_or_none(d.get(campo))
+                if val is not None and val < 4:
+                    bajos.append({"campo": campo, "valor": val})
+            bajos_por_sector[sector] = bajos
+
+        # -----------------------------
+        # 4) Armar texto completo del formulario (ordenado por secciones)
+        # -----------------------------
+        form_lines = []
+        form_lines.append("DATOS GENERALES")
+        for k in DATOS_GENERALES:
+            if k in d:
+                form_lines.append(f"{k}: {fmt_value(d.get(k))}")
+
+        for sector, campos in SECTORES.items():
+            form_lines.append("\n" + sector)
+            for k in campos:
+                if k in d:
+                    form_lines.append(f"{k}: {fmt_value(d.get(k))}")
+
+        # Meter cualquier dato que exista en el modelo pero no esté listado arriba
+        usados = set(DATOS_GENERALES)
+        for campos in SECTORES.values():
+            usados.update(campos)
+
+        otros = []
+        for k, v in d.items():
+            if k in usados:
+                continue
+            # evitar columnas internas si las tuvieras
+            if k in ("id", "created_at", "updated_at", "respuesta_ia"):
+                continue
+            # si querés también excluir foreign keys, etc, lo agregás acá
+            otros.append((k, v))
+
+        if otros:
+            form_lines.append("\nOTROS_DATOS_NO_CLASIFICADOS")
+            for k, v in otros:
+                form_lines.append(f"{k}: {fmt_value(v)}")
+
+        form_text = "\n".join(form_lines)
+
+        # -----------------------------
+        # 5) Prompt final (formato estricto + uso de docs + regla <4)
+        # -----------------------------
+        # Importante: forzamos a que use SOLO cursos del doc "CURSOS PARA RECOMENDAR"
+        # y que la asignación curso->sector salga del doc de priorización.
         evaluation_prompt = f"""
 Evaluá el siguiente diagnóstico de una estación de servicio YPF.
 
-Respondé EXCLUSIVAMENTE con el siguiente formato:
+REGLAS IMPORTANTES (NO IGNORAR):
+1) Tenés disponible en tu base de conocimiento:
+   - "Explicacion priorizacion" (define qué cursos pertenecen a qué SECTOR y a qué tipo de brecha).
+   - "CURSOS PARA RECOMENDAR" (lista completa de cursos con detalles).
+2) Para recomendar un curso en un SECTOR, basate en:
+   - Ítems NUMÉRICOS del sector con valor < 4 (se consideran bajos).
+   - La tabla/reglas del documento "Explicacion priorizacion".
+3) NO inventes cursos. Elegí únicamente cursos que existan textualmente en "CURSOS PARA RECOMENDAR".
+4) Para cada sector sugerí 1 a 3 cursos como máximo.
+   - Si no hay brechas numéricas (<4) en ese sector, escribí:
+     - Ninguna (no se detectan brechas relevantes)
+5) Respondé EXCLUSIVAMENTE con el formato exacto indicado abajo. Sin texto fuera de los headers.
+
+RESPONDÉ EXCLUSIVAMENTE CON ESTE FORMATO:
 
 [DIAGNOSTICO_GENERAL]
 Texto claro y profesional.
@@ -635,26 +813,99 @@ Texto claro y profesional.
 - Punto 1
 - Punto 2
 
-[RECOMENDACIONES]
-- Recomendación 1
-- Recomendación 2
+[SEGURIDAD Y CUMPLIMIENTO]
+- Resumen de evaluacion de este sector
 
-[CAPACITACIONES_SUGERIDAS]
+[CAPACITACIONES_SUGERIDAS_SEGURIDAD_Y_CUMPLIMIENTO]
 - Curso 1
 - Curso 2
+
+[EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN]
+- Resumen de evaluacion de este sector
+
+[CAPACITACIONES_SUGERIDAS_CLIENTE_Y_COMUNICACIÓN]
+- Curso 1
+- Curso 2
+
+[CONOCIMIENTO Y RANKING]
+- Resumen de evaluacion de este sector
+
+[CAPACITACIONES_SUGERIDAS_CONOCIMIENTO_Y_RANKING]
+- Curso 1
+- Curso 2
+
+[GESTIÓN DE LA EESS Y REPUTACIÓN DIGITAL]
+- Resumen de evaluacion de este sector
+
+[CAPACITACIONES_SUGERIDAS_GESTIÓN_DE_LA_EESS_Y_REPUTACIÓN_DIGITAL]
+- Curso 1
+- Curso 2
+
+[LIDERAZGO Y GESTIÓN DE EQUIPOS]
+- Resumen de evaluacion de este sector
+
+[CAPACITACIONES_SUGERIDAS_LIDERAZGO_Y_GESTIÓN_DE_EQUIPOS]
+- Curso 1
+- Curso 2
+
+
+BRECHAS NUMÉRICAS DETECTADAS (VALOR < 4):
+{json.dumps(bajos_por_sector, ensure_ascii=False, indent=2)}
 
 INFORMACIÓN DEL FORMULARIO:
 {form_text}
 """
 
-        # 4️⃣ Llamar al assistant
+        # -----------------------------
+        # 6) Llamar al assistant + validar formato (reintento 1 vez)
+        # -----------------------------
+        def has_required_headers(text: str) -> bool:
+            required = [
+                "[DIAGNOSTICO_GENERAL]",
+                "[FORTALEZAS]",
+                "[DEBILIDADES]",
+                "[SEGURIDAD Y CUMPLIMIENTO]",
+                "[CAPACITACIONES_SUGERIDAS_SEGURIDAD_Y_CUMPLIMIENTO]",
+                "[EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN]",
+                "[CAPACITACIONES_SUGERIDAS_CLIENTE_Y_COMUNICACIÓN]",
+                "[CONOCIMIENTO Y RANKING]",
+                "[CAPACITACIONES_SUGERIDAS_CONOCIMIENTO_Y_RANKING]",
+                "[GESTIÓN DE LA EESS Y REPUTACIÓN DIGITAL]",
+                "[CAPACITACIONES_SUGERIDAS_GESTIÓN_DE_LA_EESS_Y_REPUTACIÓN_DIGITAL]",
+                "[LIDERAZGO Y GESTIÓN DE EQUIPOS]",
+                "[CAPACITACIONES_SUGERIDAS_LIDERAZGO_Y_GESTIÓN_DE_EQUIPOS]",
+            ]
+            return all(h in (text or "") for h in required)
+
         respuesta_ia = query_assistant(evaluation_prompt)
 
-        # 5️⃣ Guardar respuesta IA
+        if not has_required_headers(respuesta_ia):
+            # Reintento más duro (una sola vez, no nos vamos a casar con el modelo)
+            retry_prompt = f"""
+NO RESPETASTE EL FORMATO. REHACÉ LA RESPUESTA.
+
+REGLA ABSOLUTA:
+- Devolvé SOLO el formato con los headers exactos, en el mismo orden.
+- No agregues introducciones, ni cierres, ni explicaciones.
+- No inventes cursos: solo cursos existentes en "CURSOS PARA RECOMENDAR".
+- Máximo 3 cursos por sector. Si no aplica: "- Ninguna (no se detectan brechas relevantes)".
+
+USÁ EL SIGUIENTE CONTENIDO COMO FUENTE:
+
+BRECHAS NUMÉRICAS DETECTADAS (VALOR < 4):
+{json.dumps(bajos_por_sector, ensure_ascii=False, indent=2)}
+
+INFORMACIÓN DEL FORMULARIO:
+{form_text}
+"""
+            respuesta_ia = query_assistant(retry_prompt)
+
+        # -----------------------------
+        # 7) Guardar y devolver
+        # -----------------------------
         diagnostico.respuesta_ia = respuesta_ia
         db.session.commit()
 
-        # 6️⃣ Responder al frontend
         return jsonify({
             "status": "ok",
             "diagnostico_id": diagnostico.id,
