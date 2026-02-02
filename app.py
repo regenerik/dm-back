@@ -176,7 +176,7 @@ def cargar_usuarios_iniciales():
             "admin": os.getenv(f'ADMIN{i}') == 'True',
             "url_image": os.getenv(f'URL_IMAGE{i}')
         }
-        for i in range(1, 26)  # Del 1 al 26 inclusive
+        for i in range(1, 27)  # Del 1 al 26 inclusive
         if os.getenv(f'EMAIL{i}')  # Solo si hay mail en el .env
     ]
 
