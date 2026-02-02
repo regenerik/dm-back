@@ -794,11 +794,97 @@ REGLAS IMPORTANTES (NO IGNORAR):
 2) Para recomendar un curso en un SECTOR, basate en:
    - Ítems NUMÉRICOS del sector con valor < 4 (se consideran bajos).
    - La tabla/reglas del documento "Explicacion priorizacion".
-3) NO inventes cursos. Elegí únicamente cursos que existan textualmente en "CURSOS PARA RECOMENDAR".
+3) NO inventes cursos. Está prohibido crear títulos nuevos.
 4) Para cada sector sugerí 1 a 3 cursos como máximo.
    - Si no hay brechas numéricas (<4) en ese sector, escribí:
-     - Ninguna (no se detectan brechas relevantes)
+     Ninguna (no se detectan brechas relevantes)
 5) Respondé EXCLUSIVAMENTE con el formato exacto indicado abajo. Sin texto fuera de los headers.
+
+REGLAS DURAS SOBRE CURSOS (OBLIGATORIAS):
+- Los cursos recomendados deben ser TÍTULOS EXISTENTES y deben coincidir EXACTAMENTE (copia literal) con un título del catálogo provisto abajo.
+- Está PROHIBIDO inventar, resumir, parafrasear o combinar títulos.
+- Solo podés recomendar cursos que estén dentro del sector correspondiente en [CATALOGO_CURSOS_POR_SECTOR].
+- Si no encontrás un título exacto aplicable para un sector, devolvé:
+  Ninguna (no se detectan brechas relevantes)
+- No incluyas comillas, ni agregues texto extra en la línea del curso.
+
+[CATALOGO_CURSOS_POR_SECTOR]
+
+[SEGURIDAD Y CUMPLIMIENTO]
+- SEGURIDAD INTEGRAL EN ESTACIONES
+- RTS 2025 SEGURIDAD: OPERACIÓN SEGURA EN ESTACIONES / DESCARGA SEGURA DE COMBUSTIBLES
+- RTS 2025 GNC: EVALUACIÓN Y PROCEDIMIENTOS EN SITUACIONES DE EMERGENCIA EN EESS DE GNC
+- SEGURIDAD EN LA OPERACIÓN BOXES
+- RTS SEGURIDAD - OPERACIÓN SEGURA EN "TIENDA FULL Y BOXES"
+- ELEMENTOS DE PROTECCIÓN PERSONAL EN ESTACIONES DE SERVICIO
+- TURNO SEGURO EN ESTACIONES
+- RTS 2025 MEDIO AMBIENTE: DERRAMES DE GRAN MAGNITUD
+- MEDIO AMBIENTE- LIMPIEZA DE PLAYA DE COMBUSTIBLES
+- PERMISO DE TRABAJO PARA EESS
+
+[EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN]
+- Experiencia de Compra WOW: Ciclo Completo de Servicios en Playa
+- Experiencia de Compra WOW: Ciclo Completo de Servicios en Tienda
+- CONECTAR Y VENDER EN BOXES
+- Programa de Experiencia del Cliente 1.0: "Conexión Total con tus Clientes
+- Programa de Experiencia del Cliente 2.0: "Liderazgo Transformador en Conexión Emocional"​
+- FLASH 10: ARQUETIPOS, EL CLIENTE INDECISO
+- FLASH 16: ARQUETIPOS DE CLIENTES
+- FLASH 15: VENTA CONSCIENTE EN PLAYA
+- COMUNICACIÓN EFECTIVA Y MANEJO DE SITUACIONES CONFLICTIVAS
+- APRENDIZAJE PLUS TERCERA TEMPORADA: COMUNICACIÓN EFECTIVA & NEGOCIACIÓN
+- COMUNICACIÓN & VENTA - BOXES
+- CAPACITACIÓN COMERCIAL BOXES
+- APRENDIZAJE PLUS SEGUNDA TEMPORADA: NEUROVENTAS
+- NEUROVENTAS ATENCIÓN EN BOXES
+- NEUROVENTAS ATENCIÓN EN PLAYA
+- NEUROVENTAS ATENCIÓN EN TIENDAS
+- FLASH 1: VENTA CRUZADA EN PLAYA
+- FLASH 6: OPORTUNIDADES DE VENTA EN TIENDAS
+- LA VOZ DEL CLIENTE EN LA ESTACIÓN DE SERVICIO
+- CONECTAR Y VENDER EN  PLAYA
+- CONECTAR Y VENDER EN TIENDA
+- EL DESAFIO DE LA VENTA CONSCIENTE - PLAYA
+- EL DESAFIO DE LA VENTA CONSCIENTE - TIENDA
+- COMUNICACIÓN & VENTA -  PLAYA
+- COMUNICACIÓN & VENTA – TIENDA
+
+[CONOCIMIENTO Y RANKING]
+- NUESTROS PRODUCTOS: COMBUSTIBLES
+- NUESTROS PRODUCTOS: LUBRICANTES.
+- ELABORACIÓN DE CAFÉ
+- ELABORACIÓN DE COMIDAS CON HORNO RATIONAL
+- ELABORACIÓN DE PANIFICADOS
+- FLASH 13: BENEFICIOS DE LA APP YPF
+- FLASH 19: DESCUENTOS APP YPF
+
+[GESTIÓN DE LA EESS Y REPUTACIÓN DIGITAL]
+- 01. GESTIONANDO CON DATOS
+- 04. ESTADO DE RESULTADO
+- 03. GESTIÓN DOCUMENTAL: GUÍA
+- 06.A. INTRODUCCIÓN AL CONTROL DE STOCK
+- 06.B. CONTROL DE STOCK PLAYA/ 1. COMBUSTIBLE LÍQUIDO
+- 06.B. CONTROL DE STOCK PLAYA/ 2. COMBUSTIBLE GNC
+- 06.B. CONTROL DE STOCK PLAYA/ 3. OTROS PRODUCTOS
+- 06.C. CONTROL DE STOCK TIENDAS
+- 06.D. CONTROL DE STOCK BOXES
+- REDES SOCIALES KIT DE MARKETING PARA ESTACIONES
+- 07. RECURSOS HUMANOS
+
+[LIDERAZGO Y GESTIÓN DE EQUIPOS]
+- CONVERSACIONES PODEROSAS
+- CASUÍSTICA LIDERAZGO EMOCIONAL RA
+- CASUISTICA GESTION DE EQUIPOS
+- LEARNING CAFÉ: GESTION DEL TALENTO
+- CASUÍSTICA CONVERSACIONES CONSCIENTES
+- PROGRAMA LIDERAZGO QUE IMPULSA RESULTADOS
+- PROGRAMA ENTRENADORES
+- “LA MAQUINA DE CUMPLIR SUEÑOS” - EQUIPO DE ALTO RENDIMIENTO
+- CASUÍSTICA GESTIÓN DE ENTORNOS DESAFIANTES
+- APRENDIZAJE PLUS:  COACHING
+
+FIN DEL CATALOGO
+
 
 RESPONDÉ EXCLUSIVAMENTE CON ESTE FORMATO:
 
@@ -882,15 +968,18 @@ INFORMACIÓN DEL FORMULARIO:
         if not has_required_headers(respuesta_ia):
             # Reintento más duro (una sola vez, no nos vamos a casar con el modelo)
             retry_prompt = f"""
-NO RESPETASTE EL FORMATO. REHACÉ LA RESPUESTA.
+NO RESPETASTE EL FORMATO O INVENTASTE TÍTULOS. REHACÉ LA RESPUESTA.
 
 REGLA ABSOLUTA:
 - Devolvé SOLO el formato con los headers exactos, en el mismo orden.
 - No agregues introducciones, ni cierres, ni explicaciones.
-- No inventes cursos: solo cursos existentes en "CURSOS PARA RECOMENDAR".
-- Máximo 3 cursos por sector. Si no aplica: "- Ninguna (no se detectan brechas relevantes)".
+- Máximo 3 cursos por sector.
+- Si no aplica: "Ninguna (no se detectan brechas relevantes)".
+- Los títulos de cursos deben ser COPIA EXACTA y SOLO pueden salir del catálogo provisto.
 
 USÁ EL SIGUIENTE CONTENIDO COMO FUENTE:
+
+{evaluation_prompt.split("RESPONDÉ EXCLUSIVAMENTE CON ESTE FORMATO:")[0]}
 
 BRECHAS NUMÉRICAS DETECTADAS (VALOR < 4):
 {json.dumps(bajos_por_sector, ensure_ascii=False, indent=2)}
