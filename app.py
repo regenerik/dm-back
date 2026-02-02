@@ -26,12 +26,14 @@ from routes.recursos_bp import recursos_bp
 from routes.presentaciones_bp import presentaciones_bp
 from routes.form_necesidades_bp import form_necesidades_bp
 from routes.sexto_survey import sexto_survey_bp
+from routes.permissions_bp import permissions_bp
 from initial_data_setup import carga_base_instrucciones_ia_data_mentor # Este es el que funciona para IA DATAMENTOR
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS                         # Permisos de consumo
 from extensions import init_extensions              # Necesario para que funcione el executor en varios archivos en simultaneo
 from models import TodosLosReportes, User  # Importamos el modelo para TodosLosReportes
 from dotenv import load_dotenv
+from seed_sectores import cargar_sectores_iniciales_si_no_existen
 load_dotenv()
 
 app = Flask(__name__)
@@ -99,6 +101,8 @@ app.register_blueprint(presentaciones_bp , url_prefix='/')
 app.register_blueprint(form_necesidades_bp, url_prefix='/')
 
 app.register_blueprint(sexto_survey_bp , url_prefix='/')
+
+app.register_blueprint(permissions_bp , url_prefix='/')
 
 # DATABASE---------------
 db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'mydatabase.db')
@@ -255,6 +259,7 @@ with app.app_context():
     cargar_usuarios_iniciales()
     cargar_topicos_iniciales_si_no_existen()
     carga_base_instrucciones_ia_data_mentor()
+    cargar_sectores_iniciales_si_no_existen()
 
 # -----------------------
 

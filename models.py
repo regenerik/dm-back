@@ -17,6 +17,26 @@ class User(db.Model):
     admin = db.Column(db.Boolean)
     status = db.Column(db.Boolean, default=True) # Agrega esta línea
 
+class Sector(db.Model):
+    __tablename__ = "sectors"
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(50), unique=True, nullable=False)  # "course_creator"
+    label = db.Column(db.String(80), nullable=False)            # "Creador de cursos"
+    description = db.Column(db.String(255))
+    default_enabled = db.Column(db.Boolean, default=False)
+
+class UserSectorAccess(db.Model):
+    __tablename__ = "user_sector_access"
+    id = db.Column(db.Integer, primary_key=True)
+    user_dni = db.Column(db.Integer, db.ForeignKey("user.dni"), nullable=False)
+    sector_id = db.Column(db.Integer, db.ForeignKey("sectors.id"), nullable=False)
+    enabled = db.Column(db.Boolean, default=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_dni", "sector_id", name="uq_user_sector"),
+    )
+
+
 class Permitido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     dni = db.Column(db.Integer, db.ForeignKey('user.id'))
