@@ -1,21 +1,25 @@
 from flask import Blueprint, jsonify, request
 from database import db
 from models import User, Sector, UserSectorAccess
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 
 permissions_bp = Blueprint("permissions_bp", __name__)
 
 
 def admin_required():
-    """
-    Ajustá esto a tu JWT real.
-    OJO: no confíes en el localStorage. Eso lo puede tocar un mono con teclado.
-    """
-    claims = get_jwt()
-    # opción 1: guardás "admin" como claim cuando generás el token
-    if not claims.get("admin", False):
+    dni = get_jwt_identity()
+    print("JWT identity:", dni, type(dni))
+    if dni is None:
         return False
-    return True
+
+    # por si viene string
+    try:
+        dni = int(dni)
+    except (TypeError, ValueError):
+        return False
+
+    user = User.query.get(dni) or User.query.filter_by(dni=dni).first()
+    return bool(user and user.admin is True)
 
 
 @permissions_bp.route("/users/<int:dni>/permissions", methods=["GET"])
