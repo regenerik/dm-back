@@ -733,7 +733,7 @@ def restaurar_db():
             logger.info("DEBUG: Tabla ReportesDataMentor restaurada.")
 
         if wiped_history:
-            restore_table(HistoryUserCourses, data_history_user_courses)
+            restore_table(HistoryUserCourses, data_history_user_courses, date_fields={"created_at", "updated_at"})
             logger.info("DEBUG: Tabla HistoryUserCourses restaurada.")
 
         if wiped_formulario_gestor:
