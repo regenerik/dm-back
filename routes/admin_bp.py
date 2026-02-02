@@ -1,7 +1,7 @@
 from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app, Response # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User, TotalComents, Instructions, ReportesDataMentor, HistoryUserCourses, FormularioGestor                     # importar tabla "User" de models
+from models import User, TotalComents, Instructions, ReportesDataMentor, HistoryUserCourses, FormularioGestor  , Sector, UserSectorAccess                   # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
 from logging_config import logger
@@ -104,42 +104,54 @@ def create_user():
 @admin_bp.route('/login', methods=['POST'])
 def get_token():
     try:
-        # Primero chequeamos que por el body venga la info necesaria:
-        email = request.json.get('email')
-        password = request.json.get('password')
+        email = (request.json or {}).get('email')
+        password = (request.json or {}).get('password')
 
         if not email or not password:
             return jsonify({'error': 'Email y password son requeridos.'}), 400
-        
-        # Buscamos al usuario con ese correo electronico
+
         login_user = User.query.filter_by(email=email).one_or_none()
 
-        # Si el usuario no existe, o la contraseña es incorrecta, manejamos el error.
-        # Es mejor no especificar si es el email o la contraseña lo que falla por seguridad.
         if not login_user or not bcrypt.check_password_hash(login_user.password, password):
-            return jsonify({"Error": "Usuario o contraseña incorrecta"}), 401
-        
-        # --- CAMBIO CLAVE: VERIFICAR EL ESTADO DEL USUARIO ---
+            return jsonify({"error": "Usuario o contraseña incorrecta"}), 401
+
         if not login_user.status:
-            return jsonify({"Error": "Tu cuenta está inactiva. Por favor, contacta a un administrador."}), 403 # 403 Forbidden
-        
-        # Si la contraseña es correcta y el usuario está activo, generamos un token
-        expires = timedelta(minutes=30)
+            return jsonify({"error": "Tu cuenta está inactiva. Por favor, contacta a un administrador."}), 403
+
+        # ✅ Token con identity = DNI (string) como ya dejaste
+        expires = timedelta(days=1)
         user_dni = login_user.dni
         access_token = create_access_token(identity=str(user_dni), expires_delta=expires)
-        
-        return jsonify({ 
-            'access_token': access_token, 
-            'name': login_user.name, 
-            'admin': login_user.admin, 
-            'dni': user_dni, 
-            'email': login_user.email, 
-            'url_image': login_user.url_image
+
+        # ✅ Permissions: keys habilitados para ESTE usuario
+        # Traemos sectores y los overrides del usuario
+        sectors = Sector.query.order_by(Sector.id.asc()).all()
+        access_rows = UserSectorAccess.query.filter_by(user_dni=user_dni).all()
+        access_map = {a.sector_id: bool(a.enabled) for a in access_rows}
+
+        enabled_keys = []
+        for s in sectors:
+            enabled = access_map.get(s.id, bool(getattr(s, "default_enabled", False)))
+            if enabled:
+                enabled_keys.append(s.key)
+
+        # ✅ Admin ve todo (si querés simplificar el dashboard)
+        # Si preferís no mandar nada extra, igual mandamos el array para todos.
+        if login_user.admin:
+            enabled_keys = [s.key for s in sectors]
+
+        return jsonify({
+            'access_token': access_token,
+            'name': login_user.name,
+            'admin': bool(login_user.admin),
+            'dni': user_dni,
+            'email': login_user.email,
+            'url_image': login_user.url_image,
+            'permissions': enabled_keys  # 👈 CLAVE
         }), 200
 
     except Exception as e:
-        # Aquí manejamos errores inesperados, como problemas de conexión a la base de datos
-        return {"Error":"Ocurrió un problema en el servidor: " + str(e)}, 500
+        return jsonify({"error": "Ocurrió un problema en el servidor: " + str(e)}), 500
     
 
     # EJEMPLO DE RUTA RESTRINGIDA POR TOKEN. ( LA MISMA RECUPERA TODOS LOS USERS Y LO ENVIA PARA QUIEN ESTÉ LOGUEADO )
