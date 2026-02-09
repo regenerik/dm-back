@@ -486,6 +486,7 @@ def get_buckup():
                 "url_image": user_obj.url_image,
                 "admin": user_obj.admin,
                 "status": user_obj.status,
+                "gestor": bool(user_obj.gestor),
             })
         logger.info("DEBUG: Serialización de User completada.")
 
@@ -709,8 +710,10 @@ def restaurar_db():
             restore_table(Sector, data_sectors)
             logger.info("DEBUG: Tabla Sector restaurada.")
 
-        # Users primero (para muchas otras posibles FK)
         if wiped_users:
+            for u in data_users:
+                u.setdefault("gestor", False)
+
             restore_table(User, data_users)
             logger.info("DEBUG: Tabla User restaurada.")
 
@@ -787,3 +790,55 @@ def restaurar_db():
             "error": f"Fallo inesperado: {str(e)}",
             "restored_at_utc": restore_timestamp
         }), 500
+    
+
+
+#-------------- GESTORES
+
+
+@admin_bp.route('/get_gestores', methods=['GET'])
+def get_gestores():
+    gestores = (
+        db.session.query(User)
+        .filter(User.gestor == True)  # noqa: E712
+        .order_by(User.name.asc())
+        .all()
+    )
+
+    return jsonify([
+        {
+            "dni": u.dni,          # si tu PK es dni
+            "id": getattr(u, "id", None),
+            "name": u.name,
+            "email": u.email,
+            "gestor": bool(u.gestor),
+        }
+        for u in gestores
+    ]), 200
+
+@admin_bp.route('/switch_gestores', methods=['POST'])
+def switch_gestores():
+    body = request.get_json(silent=True) or {}
+    dni = body.get("dni")
+
+    if dni is None:
+        return jsonify({"error": "Falta 'dni'"}), 400
+
+    user = db.session.get(User, dni)  # PK = dni
+
+    if not user:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    user.gestor = not bool(user.gestor)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "No se pudo actualizar", "detail": str(e)}), 500
+
+    return jsonify({
+        "ok": True,
+        "dni": user.dni,
+        "gestor": bool(user.gestor),
+    }), 200

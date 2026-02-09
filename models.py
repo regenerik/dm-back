@@ -16,6 +16,8 @@ class User(db.Model):
     url_image = db.Column(db.String(255))
     admin = db.Column(db.Boolean)
     status = db.Column(db.Boolean, default=True) # Agrega esta línea
+    gestor = db.Column(db.Boolean, default=False)
+
 
 class Sector(db.Model):
     __tablename__ = "sectors"
