@@ -629,7 +629,55 @@ def evaluar_diagnostico_con_ia():
         # 1) Traer TODOS los datos
         # -----------------------------
         d = model_to_dict(diagnostico)
+                # -----------------------------
+        # 1.1) Detectar sectores inexistentes según dotación
+        # -----------------------------
+        tienda_personal_int = to_int_or_none(d.get("tienda_personal"))
+        boxes_personal_int = to_int_or_none(d.get("boxes_personal"))
 
+        tiene_tienda = (tienda_personal_int or 0) > 0
+        tiene_boxes = (boxes_personal_int or 0) > 0
+
+        reglas_sectores = []
+        campos_excluidos = set()
+
+        if not tiene_tienda:
+            reglas_sectores.append(
+                "- tienda_personal = 0 => la estación NO cuenta con TIENDA. "
+                "Está PROHIBIDO mencionar Tienda/Tiendas/Full, sugerir cursos de Tienda "
+                "o usar datos de Tienda para el diagnóstico."
+            )
+            campos_excluidos.update({
+                "nivel_bromatologia",
+                "mejoras_bromatologia",
+                "otro_bromatologia",
+                "conoce_tienda",
+                "otro_seguridad_tienda",
+            })
+
+        if not tiene_boxes:
+            reglas_sectores.append(
+                "- boxes_personal = 0 => la estación NO cuenta con BOXES. "
+                "Está PROHIBIDO mencionar Boxes, sugerir cursos de Boxes "
+                "o usar datos de Boxes para el diagnóstico."
+            )
+            campos_excluidos.update({
+                "conoce_boxes",
+                "otro_seguridad_boxes",
+            })
+
+        if not reglas_sectores:
+            reglas_sectores.append(
+                "- tienda_personal > 0 y boxes_personal > 0 => la estación cuenta con ambos sectores. "
+                "No hay exclusiones por inexistencia de sector."
+            )
+
+        reglas_sectores_text = "\n".join(reglas_sectores)
+        campos_excluidos_text = (
+            "\n".join([f"- {campo}" for campo in sorted(campos_excluidos)])
+            if campos_excluidos
+            else "- Ninguno"
+        )
         # -----------------------------
         # 2) Definir campos por sector
         #    (acá sí listamos para ordenar el texto; pero igual si te olvidás algo,
@@ -737,10 +785,26 @@ def evaluar_diagnostico_con_ia():
             ],
         }
 
+        campos_numericos_bloqueados = set()
+
+        if not tiene_tienda:
+            campos_numericos_bloqueados.update({
+                "nivel_bromatologia",
+                "conoce_tienda",
+            })
+
+        if not tiene_boxes:
+            campos_numericos_bloqueados.update({
+                "conoce_boxes",
+            })
+
         bajos_por_sector = {}
         for sector, campos in NUMERICOS_POR_SECTOR.items():
             bajos = []
             for campo in campos:
+                if campo in campos_numericos_bloqueados:
+                    continue
+
                 val = to_int_or_none(d.get(campo))
                 if val is not None and val < 4:
                     bajos.append({"campo": campo, "valor": val})
@@ -790,8 +854,24 @@ def evaluar_diagnostico_con_ia():
         # y que la asignación curso->sector salga del doc de priorización.
         evaluation_prompt = f"""
 Evaluá el siguiente diagnóstico de una estación de servicio YPF.
+CONTEXTO OPERATIVO DE SECTORES (PRIORIDAD MÁXIMA):
+- tienda_personal: {tienda_personal_int if tienda_personal_int is not None else 0}
+- boxes_personal: {boxes_personal_int if boxes_personal_int is not None else 0}
 
+RESTRICCIONES POR SECTORES INEXISTENTES:
+{reglas_sectores_text}
+
+CAMPOS QUE DEBÉS IGNORAR SI EL SECTOR NO EXISTE:
+{campos_excluidos_text}
+
+ACLARACIÓN OBLIGATORIA:
+- Si tienda_personal = 0, la estación NO tiene TIENDA. Ignorá cualquier referencia a Tienda/Tiendas/Full, aunque aparezca en listas, rankings o textos del formulario.
+- Si boxes_personal = 0, la estación NO tiene BOXES. Ignorá cualquier referencia a Boxes, aunque aparezca en listas, rankings o textos del formulario.
+- Si un curso mezcla un sector existente con uno inexistente, también queda PROHIBIDO.
+- Las restricciones por inexistencia de sectores tienen prioridad sobre cualquier brecha detectada y sobre cualquier otro dato del formulario.
+- No menciones sectores inexistentes ni en [DIAGNOSTICO_GENERAL], ni en [FORTALEZAS], ni en [DEBILIDADES], ni en los resúmenes sectoriales.
 REGLAS IMPORTANTES (NO IGNORAR):
+0) Respetá SIEMPRE las restricciones por sectores inexistentes indicadas arriba. Si Tienda o Boxes no existen, no los menciones y no sugieras cursos de esos sectores.
 1) Tenés disponible en tu base de conocimiento:
    - "Explicacion priorizacion" (define qué cursos pertenecen a qué SECTOR y a qué tipo de brecha).
    - "CURSOS PARA RECOMENDAR" (lista completa de cursos con detalles).
@@ -802,12 +882,16 @@ REGLAS IMPORTANTES (NO IGNORAR):
 4) Para cada sector sugerí 1 a 3 cursos como máximo.
    - Si no hay brechas numéricas (<4) en ese sector, escribí:
      Ninguna (no se detectan brechas relevantes)
+   - Si el sector no existe por dotación (por ejemplo, tienda_personal = 0 o boxes_personal = 0), NO menciones ese sub-sector ni recomiendes cursos asociados. En ese caso, ignoralo por completo en el análisis.
 5) Respondé EXCLUSIVAMENTE con el formato exacto indicado abajo. Sin texto fuera de los headers.
 
 REGLAS DURAS SOBRE CURSOS (OBLIGATORIAS):
 - Los cursos recomendados deben ser TÍTULOS EXISTENTES y deben coincidir EXACTAMENTE (copia literal) con un título del catálogo provisto abajo.
 - Está PROHIBIDO inventar, resumir, parafrasear o combinar títulos.
 - Solo podés recomendar cursos que estén dentro del sector correspondiente en [CATALOGO_CURSOS_POR_SECTOR].
+- Si tienda_personal = 0, quedan PROHIBIDOS todos los títulos que contengan TIENDA, TIENDAS o FULL.
+- Si boxes_personal = 0, quedan PROHIBIDOS todos los títulos que contengan BOXES.
+- Si un título menciona simultáneamente un sector existente y uno inexistente, también queda PROHIBIDO.
 - Si no encontrás un título exacto aplicable para un sector, devolvé:
   Ninguna (no se detectan brechas relevantes)
 - No incluyas comillas, ni agregues texto extra en la línea del curso.
