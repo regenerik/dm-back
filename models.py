@@ -1154,9 +1154,13 @@ class DiagnosticoOperadores(db.Model):
     tipo_estacion       = db.Column(db.String(50), nullable=True, default="")
     empleados_total     = db.Column(db.String(20), nullable=True, default="")
 
-    playa_personal  = db.Column(db.String(20), nullable=True, default="")
-    tienda_personal = db.Column(db.String(20), nullable=True, default="")
-    boxes_personal  = db.Column(db.String(20), nullable=True, default="")
+    playa_personal              = db.Column(db.String(20), nullable=True, default="")
+    tienda_personal             = db.Column(db.String(20), nullable=True, default="")
+    boxes_personal              = db.Column(db.String(20), nullable=True, default="")
+    administrativo_personal     = db.Column(db.String(20), nullable=True, default="")
+    jefes_estacion_personal     = db.Column(db.String(20), nullable=True, default="")
+    responsable_turno_personal  = db.Column(db.String(20), nullable=True, default="")
+    operador_personal           = db.Column(db.String(20), nullable=True, default="")
 
     anios_operacion      = db.Column(db.String(50), nullable=True, default="")
     capacitaciones_anio  = db.Column(db.String(50), nullable=True, default="")
@@ -1260,6 +1264,10 @@ class DiagnosticoOperadores(db.Model):
             "playa_personal": self.playa_personal,
             "tienda_personal": self.tienda_personal,
             "boxes_personal": self.boxes_personal,
+            "administrativo_personal": self.administrativo_personal,
+            "jefes_estacion_personal": self.jefes_estacion_personal,
+            "responsable_turno_personal": self.responsable_turno_personal,
+            "operador_personal": self.operador_personal,
             "anios_operacion": self.anios_operacion,
             "capacitaciones_anio": self.capacitaciones_anio,
             "solo_aprendizaje": self.solo_aprendizaje,

@@ -394,6 +394,10 @@ def crear_diagnostico():
         playa_personal=data.get("playa_personal", ""),
         tienda_personal=data.get("tienda_personal", ""),
         boxes_personal=data.get("boxes_personal", ""),
+        administrativo_personal=data.get("administrativo_personal", ""),
+        jefes_estacion_personal=data.get("jefes_estacion_personal", ""),
+        responsable_turno_personal=data.get("responsable_turno_personal", ""),
+        operador_personal=data.get("operador_personal", ""),
 
         anios_operacion=data.get("anios_operacion", ""),
         capacitaciones_anio=data.get("capacitaciones_anio", ""),
@@ -1030,6 +1034,10 @@ def actualizar_diagnostico(id):
     diagnostico.playa_personal = data.get("playa_personal", "")
     diagnostico.tienda_personal = data.get("tienda_personal", "")
     diagnostico.boxes_personal = data.get("boxes_personal", "")
+    diagnostico.administrativo_personal = data.get("administrativo_personal", "")
+    diagnostico.jefes_estacion_personal = data.get("jefes_estacion_personal", "")
+    diagnostico.responsable_turno_personal = data.get("responsable_turno_personal", "")
+    diagnostico.operador_personal = data.get("operador_personal", "")
 
     diagnostico.anios_operacion = data.get("anios_operacion", "")
     diagnostico.capacitaciones_anio = data.get("capacitaciones_anio", "")
@@ -1096,7 +1104,7 @@ def actualizar_diagnostico(id):
     diagnostico.temas_prioritarios = json.dumps(data.get("temas_prioritarios", []))
     diagnostico.otro_tema_prioritario = data.get("otro_tema_prioritario", "")
     diagnostico.sugerencias_finales = data.get("sugerencias_finales", "")
-    
+
     diagnostico.respuesta_ia = None
 
     db.session.commit()
