@@ -1194,3 +1194,90 @@ def actualizar_diagnostico(id):
     db.session.commit()
 
     return jsonify(diagnostico.serialize()), 200
+
+
+#----------------------------- DESCARGAR EXCEL -----------------------------
+
+@form_necesidades_bp.route("/diagnostico/exportar-excel", methods=["GET"])
+def exportar_diagnosticos_excel():
+    diagnosticos = DiagnosticoOperadores.query.order_by(DiagnosticoOperadores.id.asc()).all()
+
+    # Todas las columnas reales del modelo
+    columnas = [col.name for col in DiagnosticoOperadores.__table__.columns]
+
+    # Campos que en BD están guardados como JSON string
+    campos_json = {
+        "mejoras_seguridad",
+        "mejoras_bromatologia",
+        "situaciones_accidentes",
+        "aspectos_atencion",
+        "ranking_temas",
+        "ranking_desafios",
+        "ranking_fortalecer_lider",
+        "temas_prioritarios",
+    }
+
+    def normalizar_valor(campo, valor):
+        if valor is None:
+            return ""
+
+        # datetime -> texto legible
+        if hasattr(valor, "isoformat"):
+            return valor.isoformat()
+
+        # campos JSON guardados como string
+        if campo in campos_json and isinstance(valor, str) and valor.strip():
+            try:
+                parsed = json.loads(valor)
+
+                if isinstance(parsed, list):
+                    return " | ".join(str(item) for item in parsed)
+
+                if isinstance(parsed, dict):
+                    return json.dumps(parsed, ensure_ascii=False)
+
+                return str(parsed)
+            except Exception:
+                return valor
+
+        return valor
+
+    filas = []
+    for diagnostico in diagnosticos:
+        fila = {}
+        for campo in columnas:
+            valor = getattr(diagnostico, campo, "")
+            fila[campo] = normalizar_valor(campo, valor)
+        filas.append(fila)
+
+    # Si no hay registros, igual crea el excel con encabezados
+    df = pd.DataFrame(filas, columns=columnas)
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Diagnosticos")
+
+        ws = writer.sheets["Diagnosticos"]
+
+        # Congelar encabezado
+        ws.freeze_panes = "A2"
+
+        # Autoajuste simple de ancho de columnas
+        for idx, col in enumerate(df.columns, start=1):
+            max_len = len(str(col))
+
+            if not df.empty:
+                max_len_datos = df[col].astype(str).map(len).max()
+                max_len = max(max_len, max_len_datos)
+
+            ws.column_dimensions[ws.cell(row=1, column=idx).column_letter].width = min(max_len + 2, 50)
+
+    output.seek(0)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="diagnosticos_operadores.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
