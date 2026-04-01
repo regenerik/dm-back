@@ -970,14 +970,14 @@ REGLAS DURAS SOBRE CURSOS (OBLIGATORIAS):
 - ELEMENTOS DE PROTECCIÓN PERSONAL EN ESTACIONES DE SERVICIO- M. e-Learning
 - TURNO SEGURO EN ESTACIONES- M. e-Learning
 - RTS 2025 MEDIO AMBIENTE: DERRAMES DE GRAN MAGNITUD- M. e-Learning
-- MEDIO AMBIENTE- LIMPIEZA DE PLAYA DE COMBUSTIBLESv
+- MEDIO AMBIENTE- LIMPIEZA DE PLAYA DE COMBUSTIBLES- M. e-Learning
 - PERMISO DE TRABAJO PARA EESS- M. e-Learning
 
 [EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN]
 - Experiencia de Compra WOW: Ciclo Completo de Servicios en Playa- M. Presencial
 - Experiencia de Compra WOW: Ciclo Completo de Servicios en Tienda- M. Presencial
 - CONECTAR Y VENDER EN BOXES- M. e-Learning
-- Programa de Experiencia del Cliente 1.0: "Conexión Total con tus Clientes- M. Presencial
+- Programa de Experiencia del Cliente 1.0: "Conexión Total con tus Clientes"- M. Presencial
 - Programa de Experiencia del Cliente 2.0: "Liderazgo Transformador en Conexión Emocional"- M. Presencial
 - FLASH 10: ARQUETIPOS, EL CLIENTE INDECISO- M. MicroLearning
 - FLASH 16: ARQUETIPOS DE CLIENTES- M. MicroLearning
@@ -1158,6 +1158,9 @@ INFORMACIÓN DEL FORMULARIO:
             "status": "error",
             "message": str(e)
         }), 500
+
+
+
 
 
 @form_necesidades_bp.route("/diagnostico/<int:id>", methods=["PUT"])
