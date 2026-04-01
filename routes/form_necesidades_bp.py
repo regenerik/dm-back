@@ -18,6 +18,8 @@ import pandas as pd
 from io import BytesIO
 import re
 from sqlalchemy.inspection import inspect
+from collections import Counter, defaultdict
+import unicodedata
 
 load_dotenv()
 
@@ -1347,3 +1349,418 @@ def exportar_diagnosticos_excel():
         download_name="diagnosticos_operadores.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
+
+@form_necesidades_bp.route("/diagnostico/kpis", methods=["GET"])
+def diagnostico_kpis():
+    diagnosticos = DiagnosticoOperadores.query.order_by(DiagnosticoOperadores.created_at.asc()).all()
+
+    MONTHS_ES = [
+        "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+        "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+    ]
+
+    NUMERICOS_POR_SECTOR = {
+        "SEGURIDAD Y CUMPLIMIENTO": [
+            "nivel_seguridad",
+            "preparacion_emergencia",
+            "nivel_bromatologia",
+        ],
+        "EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN": [
+            "nivel_pilares",
+            "efectividad_comunicacion",
+            "actitud_empatica",
+            "autonomia_reclamos",
+            "adaptacion_estilo",
+        ],
+        "CONOCIMIENTO Y RANKING": [
+            "conoce_playa",
+            "conoce_tienda",
+            "conoce_boxes",
+            "conoce_digital",
+        ],
+        "GESTIÓN DE LA EESS Y REPUTACIÓN DIGITAL": [
+            "dominio_gestion",
+            "capacidad_analisis",
+            "uso_herramientas_dig",
+        ],
+        "LIDERAZGO Y GESTIÓN DE EQUIPOS": [
+            "liderazgo_efectivo",
+            "habilidades_org",
+            "interes_capacitacion",
+        ],
+    }
+
+    FIELD_LABELS = {
+        "nivel_seguridad": "Nivel de seguridad",
+        "preparacion_emergencia": "Preparación ante emergencia",
+        "nivel_bromatologia": "Nivel de bromatología",
+        "nivel_pilares": "Pilares de experiencia",
+        "efectividad_comunicacion": "Comunicación efectiva",
+        "actitud_empatica": "Actitud empática",
+        "autonomia_reclamos": "Autonomía ante reclamos",
+        "adaptacion_estilo": "Adaptación de estilo",
+        "conoce_playa": "Conocimiento de playa",
+        "conoce_tienda": "Conocimiento de tienda",
+        "conoce_boxes": "Conocimiento de boxes",
+        "conoce_digital": "Conocimiento digital",
+        "dominio_gestion": "Dominio de gestión",
+        "capacidad_analisis": "Capacidad de análisis",
+        "uso_herramientas_dig": "Uso de herramientas digitales",
+        "liderazgo_efectivo": "Liderazgo efectivo",
+        "habilidades_org": "Habilidades organizativas",
+        "interes_capacitacion": "Interés en capacitación",
+    }
+
+    COURSE_TITLES = [
+        "SEGURIDAD INTEGRAL EN ESTACIONES",
+        "RTS 2025 SEGURIDAD: OPERACIÓN SEGURA EN ESTACIONES / DESCARGA SEGURA DE COMBUSTIBLES",
+        "RTS 2025 GNC: EVALUACIÓN Y PROCEDIMIENTOS EN SITUACIONES DE EMERGENCIA EN EESS DE GNC",
+        "SEGURIDAD EN LA OPERACIÓN BOXES",
+        'RTS SEGURIDAD - OPERACIÓN SEGURA EN "TIENDA FULL Y BOXES"',
+        "ELEMENTOS DE PROTECCIÓN PERSONAL EN ESTACIONES DE SERVICIO",
+        "TURNO SEGURO EN ESTACIONES",
+        "RTS 2025 MEDIO AMBIENTE: DERRAMES DE GRAN MAGNITUD",
+        "MEDIO AMBIENTE- LIMPIEZA DE PLAYA DE COMBUSTIBLES",
+        "PERMISO DE TRABAJO PARA EESS",
+        "Experiencia de Compra WOW: Ciclo Completo de Servicios en Playa",
+        "Experiencia de Compra WOW: Ciclo Completo de Servicios en Tienda",
+        "CONECTAR Y VENDER EN BOXES",
+        'Programa de Experiencia del Cliente 1.0: "Conexión Total con tus Clientes',
+        'Programa de Experiencia del Cliente 2.0: "Liderazgo Transformador en Conexión Emocional"',
+        "FLASH 10: ARQUETIPOS, EL CLIENTE INDECISO",
+        "FLASH 16: ARQUETIPOS DE CLIENTES",
+        "FLASH 15: VENTA CONSCIENTE EN PLAYA",
+        "COMUNICACIÓN EFECTIVA Y MANEJO DE SITUACIONES CONFLICTIVAS",
+        "APRENDIZAJE PLUS TERCERA TEMPORADA: COMUNICACIÓN EFECTIVA & NEGOCIACIÓN",
+        "COMUNICACIÓN & VENTA - BOXES",
+        "CAPACITACIÓN COMERCIAL BOXES",
+        "APRENDIZAJE PLUS SEGUNDA TEMPORADA: NEUROVENTAS",
+        "NEUROVENTAS ATENCIÓN EN BOXES",
+        "NEUROVENTAS ATENCIÓN EN PLAYA",
+        "NEUROVENTAS ATENCIÓN EN TIENDAS",
+        "FLASH 1: VENTA CRUZADA EN PLAYA",
+        "FLASH 6: OPORTUNIDADES DE VENTA EN TIENDAS",
+        "LA VOZ DEL CLIENTE EN LA ESTACIÓN DE SERVICIO",
+        "CONECTAR Y VENDER EN  PLAYA",
+        "CONECTAR Y VENDER EN TIENDA",
+        "EL DESAFIO DE LA VENTA CONSCIENTE - PLAYA",
+        "EL DESAFIO DE LA VENTA CONSCIENTE - TIENDA",
+        "COMUNICACIÓN & VENTA -  PLAYA",
+        "COMUNICACIÓN & VENTA – TIENDA",
+        "NUESTROS PRODUCTOS: COMBUSTIBLES",
+        "NUESTROS PRODUCTOS: LUBRICANTES",
+        "ELABORACIÓN DE CAFÉ",
+        "ELABORACIÓN DE COMIDAS CON HORNO RATIONAL",
+        "ELABORACIÓN DE PANIFICADOS",
+        "FLASH 13: BENEFICIOS DE LA APP YPF",
+        "FLASH 19: DESCUENTOS APP YPF",
+        "01. GESTIONANDO CON DATOS",
+        "04. ESTADO DE RESULTADO",
+        "03. GESTIÓN DOCUMENTAL: GUÍA",
+        "06.A. INTRODUCCIÓN AL CONTROL DE STOCK",
+        "06.B. CONTROL DE STOCK PLAYA/ 1. COMBUSTIBLE LÍQUIDO",
+        "06.B. CONTROL DE STOCK PLAYA/ 2. COMBUSTIBLE GNC",
+        "06.B. CONTROL DE STOCK PLAYA/ 3. OTROS PRODUCTOS",
+        "06.C. CONTROL DE STOCK TIENDAS",
+        "06.D. CONTROL DE STOCK BOXES",
+        "REDES SOCIALES KIT DE MARKETING PARA ESTACIONES",
+        "07. RECURSOS HUMANOS",
+        "CONVERSACIONES PODEROSAS",
+        "CASUÍSTICA LIDERAZGO EMOCIONAL RA",
+        "CASUISTICA GESTION DE EQUIPOS",
+        "LEARNING CAFÉ: GESTION DEL TALENTO",
+        "CASUÍSTICA CONVERSACIONES CONSCIENTES",
+        "PROGRAMA LIDERAZGO QUE IMPULSA RESULTADOS",
+        "PROGRAMA ENTRENADORES",
+        "LA MAQUINA DE CUMPLIR SUEÑOS” - EQUIPO DE ALTO RENDIMIENTO",
+        "CASUÍSTICA GESTIÓN DE ENTORNOS DESAFIANTES",
+        "APRENDIZAJE PLUS:  COACHING",
+    ]
+
+    def normalize_text(value):
+        text = str(value or "").strip().lower()
+        text = unicodedata.normalize("NFD", text)
+        return "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+
+    def has_text(value):
+        return str(value or "").strip() not in ("", "None", "null")
+
+    def to_int_or_none(value):
+        if value is None:
+            return None
+        try:
+            return int(str(value).strip())
+        except Exception:
+            return None
+
+    def month_key(dt):
+        return f"{dt.year}-{str(dt.month).zfill(2)}"
+
+    def month_label(key):
+        year, month = key.split("-")
+        return f"{MONTHS_ES[int(month) - 1]} {year}"
+
+    def pct(a, b):
+        return round((a / b) * 100, 1) if b else 0.0
+
+    if not diagnosticos:
+        return jsonify({
+            "summary": {
+                "total_forms": 0,
+                "with_ia": 0,
+                "with_conclusion": 0,
+                "complete": 0,
+                "completion_rate_ia": 0,
+                "completion_rate_conclusion": 0,
+                "completion_rate_complete": 0,
+                "abanderada": 0,
+                "aca": 0,
+                "with_tienda": 0,
+                "with_boxes": 0,
+                "unique_gestores": 0,
+            },
+            "station_type_distribution": [],
+            "process_status_distribution": [],
+            "monthly_volume": [],
+            "sector_low_trends": [],
+            "sector_average_scores": [],
+            "top_problem_fields": [],
+            "course_recommendation_counts": [],
+            "gestor_distribution": [],
+            "latest_forms": [],
+        }), 200
+
+    station_counter = Counter()
+    process_counter = Counter()
+    gestor_counter = Counter()
+    course_counter = Counter()
+    problem_field_counter = Counter()
+
+    monthly_volume_map = defaultdict(lambda: {
+        "formularios": 0,
+        "con_ia": 0,
+        "con_conclusion": 0,
+        "completos": 0,
+    })
+
+    monthly_sector_map = defaultdict(lambda: {
+        sector: {"low": 0, "total": 0}
+        for sector in NUMERICOS_POR_SECTOR.keys()
+    })
+
+    sector_score_sum = defaultdict(int)
+    sector_score_count = defaultdict(int)
+
+    total_with_ia = 0
+    total_with_conclusion = 0
+    total_complete = 0
+    total_abanderada = 0
+    total_aca = 0
+    total_with_tienda = 0
+    total_with_boxes = 0
+
+    normalized_course_titles = [(title, normalize_text(title)) for title in COURSE_TITLES]
+
+    latest_forms = []
+
+    for d in diagnosticos:
+        created_at = d.created_at or datetime.utcnow()
+        key = month_key(created_at)
+
+        monthly_volume_map[key]["formularios"] += 1
+
+        has_ia = has_text(d.respuesta_ia)
+        has_conclusion = has_text(d.conclucion_final)
+
+        if has_ia:
+            total_with_ia += 1
+            monthly_volume_map[key]["con_ia"] += 1
+
+        if has_conclusion:
+            total_with_conclusion += 1
+            monthly_volume_map[key]["con_conclusion"] += 1
+
+        if has_ia and has_conclusion:
+            total_complete += 1
+            monthly_volume_map[key]["completos"] += 1
+            process_counter["Completo"] += 1
+        elif has_ia and not has_conclusion:
+            process_counter["Con IA"] += 1
+        elif has_conclusion and not has_ia:
+            process_counter["Con conclusión"] += 1
+        else:
+            process_counter["Solo formulario"] += 1
+
+        tipo_estacion = (d.tipo_estacion or "Sin dato").strip()
+        station_counter[tipo_estacion] += 1
+
+        if tipo_estacion.lower() == "abanderada":
+            total_abanderada += 1
+        elif tipo_estacion.lower() == "aca":
+            total_aca += 1
+
+        gestor = (d.gestor_asociado or "Sin gestor").strip()
+        gestor_counter[gestor] += 1
+
+        tienda_personal = to_int_or_none(d.tienda_personal) or 0
+        boxes_personal = to_int_or_none(d.boxes_personal) or 0
+
+        tiene_tienda = tienda_personal > 0
+        tiene_boxes = boxes_personal > 0
+
+        if tiene_tienda:
+            total_with_tienda += 1
+        if tiene_boxes:
+            total_with_boxes += 1
+
+        blocked_numeric_fields = set()
+        if not tiene_tienda:
+            blocked_numeric_fields.update({"nivel_bromatologia", "conoce_tienda"})
+        if not tiene_boxes:
+            blocked_numeric_fields.update({"conoce_boxes"})
+
+        for sector, fields in NUMERICOS_POR_SECTOR.items():
+            for field in fields:
+                if field in blocked_numeric_fields:
+                    continue
+
+                value = to_int_or_none(getattr(d, field, None))
+                if value is None:
+                    continue
+
+                monthly_sector_map[key][sector]["total"] += 1
+                sector_score_sum[sector] += value
+                sector_score_count[sector] += 1
+
+                if value < 4:
+                    monthly_sector_map[key][sector]["low"] += 1
+                    problem_field_counter[field] += 1
+
+        combined_text = normalize_text(f"{d.respuesta_ia or ''} {d.conclucion_final or ''}")
+        detected_in_form = set()
+
+        for title, normalized_title in normalized_course_titles:
+            if normalized_title and normalized_title in combined_text:
+                detected_in_form.add(title)
+
+        for title in detected_in_form:
+            course_counter[title] += 1
+
+        latest_forms.append({
+            "id": d.id,
+            "apies": d.apies,
+            "gestor_asociado": d.gestor_asociado,
+            "tipo_estacion": d.tipo_estacion,
+            "created_at": created_at.isoformat() if created_at else None,
+            "has_ia": has_ia,
+            "has_conclusion": has_conclusion,
+        })
+
+    monthly_volume = []
+    for key in sorted(monthly_volume_map.keys()):
+        item = monthly_volume_map[key]
+        monthly_volume.append({
+            "month": key,
+            "label": month_label(key),
+            "formularios": item["formularios"],
+            "con_ia": item["con_ia"],
+            "con_conclusion": item["con_conclusion"],
+            "completos": item["completos"],
+        })
+
+    sector_low_trends = []
+    for key in sorted(monthly_sector_map.keys()):
+        row = {
+            "month": key,
+            "label": month_label(key),
+        }
+        for sector in NUMERICOS_POR_SECTOR.keys():
+            low = monthly_sector_map[key][sector]["low"]
+            total = monthly_sector_map[key][sector]["total"]
+
+            if sector == "SEGURIDAD Y CUMPLIMIENTO":
+                field_name = "seguridad"
+            elif sector == "EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN":
+                field_name = "experiencia"
+            elif sector == "CONOCIMIENTO Y RANKING":
+                field_name = "conocimiento"
+            elif sector == "GESTIÓN DE LA EESS Y REPUTACIÓN DIGITAL":
+                field_name = "gestion"
+            else:
+                field_name = "liderazgo"
+
+            row[field_name] = pct(low, total)
+        sector_low_trends.append(row)
+
+    sector_average_scores = []
+    for sector in NUMERICOS_POR_SECTOR.keys():
+        avg = round(sector_score_sum[sector] / sector_score_count[sector], 2) if sector_score_count[sector] else 0
+        sector_average_scores.append({
+            "name": sector,
+            "value": avg,
+        })
+
+    station_type_distribution = [
+        {"name": name, "value": value}
+        for name, value in station_counter.most_common()
+    ]
+
+    process_status_distribution = [
+        {"name": "Solo formulario", "value": process_counter.get("Solo formulario", 0)},
+        {"name": "Con IA", "value": process_counter.get("Con IA", 0)},
+        {"name": "Con conclusión", "value": process_counter.get("Con conclusión", 0)},
+        {"name": "Completo", "value": process_counter.get("Completo", 0)},
+    ]
+
+    top_problem_fields = [
+        {
+            "name": FIELD_LABELS.get(field, field),
+            "value": value
+        }
+        for field, value in problem_field_counter.most_common(10)
+    ]
+
+    course_recommendation_counts = [
+        {"name": title, "value": value}
+        for title, value in course_counter.most_common(12)
+    ]
+
+    gestor_distribution = [
+        {"name": gestor, "value": value}
+        for gestor, value in gestor_counter.most_common(10)
+    ]
+
+    latest_forms = sorted(
+        latest_forms,
+        key=lambda x: x["created_at"] or "",
+        reverse=True
+    )[:8]
+
+    total_forms = len(diagnosticos)
+
+    return jsonify({
+        "summary": {
+            "total_forms": total_forms,
+            "with_ia": total_with_ia,
+            "with_conclusion": total_with_conclusion,
+            "complete": total_complete,
+            "completion_rate_ia": pct(total_with_ia, total_forms),
+            "completion_rate_conclusion": pct(total_with_conclusion, total_forms),
+            "completion_rate_complete": pct(total_complete, total_forms),
+            "abanderada": total_abanderada,
+            "aca": total_aca,
+            "with_tienda": total_with_tienda,
+            "with_boxes": total_with_boxes,
+            "unique_gestores": len(gestor_counter),
+        },
+        "station_type_distribution": station_type_distribution,
+        "process_status_distribution": process_status_distribution,
+        "monthly_volume": monthly_volume,
+        "sector_low_trends": sector_low_trends,
+        "sector_average_scores": sector_average_scores,
+        "top_problem_fields": top_problem_fields,
+        "course_recommendation_counts": course_recommendation_counts,
+        "gestor_distribution": gestor_distribution,
+        "latest_forms": latest_forms,
+    }), 200
