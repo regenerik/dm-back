@@ -810,6 +810,44 @@ def evaluar_diagnostico_con_ia():
                     bajos.append({"campo": campo, "valor": val})
             bajos_por_sector[sector] = bajos
 
+
+        CAMPOS_LIBRES = [
+            "detalle_otras_cap",
+            "otro_seguridad_playa",
+            "otro_seguridad_tienda",
+            "otro_seguridad_boxes",
+            "otro_bromatologia",
+            "otro_accidentes",
+            "otro_aspectos_atencion",
+            "otro_tema_prioritario",
+            "sugerencias_finales",
+        ]
+
+        campos_libres_lines = []
+        for campo in CAMPOS_LIBRES:
+            if campo in campos_excluidos:
+                continue
+
+            valor_fmt = fmt_value(d.get(campo))
+            if valor_fmt and valor_fmt != "-":
+                campos_libres_lines.append(f"- {campo}: {valor_fmt}")
+
+        campos_libres_text = (
+            "\n".join(campos_libres_lines)
+            if campos_libres_lines
+            else "- Ninguno"
+        )
+
+        brechas_numericas_lines = []
+
+        for sector, bajos in bajos_por_sector.items():
+            if bajos:
+                detalle = ", ".join([f"{b['campo']}={b['valor']}" for b in bajos])
+                brechas_numericas_lines.append(f"- {sector}: {detalle}")
+            else:
+                brechas_numericas_lines.append(f"- {sector}: Ninguna")
+
+        brechas_numericas_text = "\n".join(brechas_numericas_lines)
         # -----------------------------
         # 4) Armar texto completo del formulario (ordenado por secciones)
         # -----------------------------
@@ -864,6 +902,12 @@ RESTRICCIONES POR SECTORES INEXISTENTES:
 CAMPOS QUE DEBÉS IGNORAR SI EL SECTOR NO EXISTE:
 {campos_excluidos_text}
 
+BRECHAS NUMÉRICAS DETECTADAS (PRIORIDAD ALTA PARA RECOMENDAR CURSOS):
+{brechas_numericas_text}
+
+EVIDENCIA CUALITATIVA / CAMPOS LIBRES (TAMBIÉN OBLIGATORIA):
+{campos_libres_text}
+
 ACLARACIÓN OBLIGATORIA:
 - Si tienda_personal = 0, la estación NO tiene TIENDA. Ignorá cualquier referencia a Tienda/Tiendas/Full, aunque aparezca en listas, rankings o textos del formulario.
 - Si boxes_personal = 0, la estación NO tiene BOXES. Ignorá cualquier referencia a Boxes, aunque aparezca en listas, rankings o textos del formulario.
@@ -878,6 +922,25 @@ REGLAS IMPORTANTES (NO IGNORAR):
 2) Para recomendar un curso en un SECTOR, basate en:
    - Ítems NUMÉRICOS del sector con valor < 4 (se consideran bajos).
    - La tabla/reglas del documento "Explicacion priorizacion".
+2.1) Además de los ítems numéricos con valor < 4, debés tomar como evidencia válida
+     los campos libres/completados por el usuario (por ejemplo: detalle_otras_cap,
+     sugerencias_finales y todos los campos "otro_*").
+     Si esos textos describen fallas, incidentes, vacíos de conocimiento,
+     necesidades concretas o pedidos explícitos, deben influir en el diagnóstico
+     y en la recomendación de cursos.
+
+2.2) Si en un sector hay múltiples brechas numéricas (< 4), priorizá cursos
+     integrales/estructurales del sector antes que cursos demasiado específicos
+     o microcontenidos.
+
+2.3) En "EXPERIENCIA DEL CLIENTE Y COMUNICACIÓN", si hay 2 o más ítems bajos entre:
+     nivel_pilares, efectividad_comunicacion, actitud_empatica,
+     autonomia_reclamos y adaptacion_estilo,
+     priorizá primero los cursos de ciclo completo del sector existente:
+     - Experiencia de Compra WOW: Ciclo Completo de Servicios en Playa
+     - Experiencia de Compra WOW: Ciclo Completo de Servicios en Tienda
+     según corresponda por dotación.
+     Luego, si hace falta complementar, podés sugerir cursos adicionales.
 3) NO inventes cursos. Está prohibido crear títulos nuevos.
 4) Para cada sector sugerí 1 a 3 cursos como máximo.
    - Si no hay brechas numéricas (<4) en ese sector, escribí:
