@@ -1238,6 +1238,7 @@ class DiagnosticoOperadores(db.Model):
     # -------------------
     conclucion_final = db.Column(db.Text, nullable=True, default=None)
     respuesta_ia = db.Column(db.Text, nullable=True, default=None)
+    notif_vista = db.Column(db.Boolean, nullable=False, default=False)
     # -------------------
     # METADATA
     # -------------------
@@ -1250,7 +1251,8 @@ class DiagnosticoOperadores(db.Model):
             "tipo_estacion": self.tipo_estacion,
             "conclucion_final": self.conclucion_final,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "respuesta_ia": self.respuesta_ia
+            "respuesta_ia": self.respuesta_ia,
+            "notif_vista": self.notif_vista
         }
     def serialize(self):
         return {
@@ -1324,6 +1326,7 @@ class DiagnosticoOperadores(db.Model):
             # EXTRA
             "conclucion_final": self.conclucion_final,
             "respuesta_ia": self.respuesta_ia,
+            "notif_vista": self.notif_vista,
             # METADATA
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

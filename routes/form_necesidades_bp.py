@@ -1764,3 +1764,60 @@ def diagnostico_kpis():
         "gestor_distribution": gestor_distribution,
         "latest_forms": latest_forms,
     }), 200
+
+#----------------------------- NOTIFICACIONES -----------------------------
+
+@form_necesidades_bp.route("/diagnostico/notificaciones", methods=["GET"])
+def diagnostico_notificaciones():
+    gestor_asociado = (request.args.get("gestor_asociado") or "").strip()
+
+    if not gestor_asociado:
+        return jsonify([]), 200
+
+    diagnosticos = (
+        DiagnosticoOperadores.query
+        .filter(
+            DiagnosticoOperadores.gestor_asociado == gestor_asociado,
+            DiagnosticoOperadores.notif_vista == False
+        )
+        .order_by(DiagnosticoOperadores.created_at.desc())
+        .all()
+    )
+
+    return jsonify([
+        {
+            "id": d.id,
+            "apies": d.apies,
+            "gestor_asociado": d.gestor_asociado,
+            "created_at": d.created_at.isoformat() if d.created_at else None
+        }
+        for d in diagnosticos
+    ]), 200
+
+@form_necesidades_bp.route("/diagnostico/notificacion-vista", methods=["POST"])
+def diagnostico_notificacion_vista():
+    body = request.get_json(silent=True) or {}
+
+    diagnostico_id = body.get("id")
+    gestor_asociado = (body.get("gestor_asociado") or "").strip()
+
+    if not diagnostico_id or not gestor_asociado:
+        return jsonify({"error": "Faltan datos"}), 400
+
+    diagnostico = DiagnosticoOperadores.query.filter_by(
+        id=diagnostico_id,
+        gestor_asociado=gestor_asociado
+    ).first()
+
+    if not diagnostico:
+        return jsonify({"error": "No encontrado o sin permiso"}), 404
+
+    if diagnostico.notif_vista is False:
+        diagnostico.notif_vista = True
+        db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "id": diagnostico.id,
+        "apies": diagnostico.apies
+    }), 200

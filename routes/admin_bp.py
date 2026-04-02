@@ -745,10 +745,14 @@ def restaurar_db():
             logger.info("DEBUG: Tabla FormularioGestor restaurada.")
 
         if wiped_diagnostico_oper:
+            for d in data_diagnostico_oper:
+                if "notif_vista" not in d or d["notif_vista"] is None:
+                    d["notif_vista"] = True
+
             restore_table(DiagnosticoOperadores, data_diagnostico_oper, date_fields={"created_at"})
             logger.info("DEBUG: Tabla DiagnosticoOperadores restaurada.")
 
-        # UserSectorAccess al final (depende de User + Sector)
+        # UserSectorAccess al final (depende d
         if wiped_user_sector_access:
             restore_table(UserSectorAccess, data_user_sector_access)
             logger.info("DEBUG: Tabla UserSectorAccess restaurada.")
