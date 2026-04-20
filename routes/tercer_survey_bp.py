@@ -19,6 +19,9 @@ jwt = JWTManager()
 
 # Sistema de key base pre rutas ------------------------:
 
+
+
+
 API_KEY = os.getenv('API_KEY')
 
 def check_api_key(api_key):
