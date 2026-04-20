@@ -1,9 +1,9 @@
 from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app, Response # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User, TotalComents, Instructions, ReportesDataMentor, HistoryUserCourses, FormularioGestor  , Sector, UserSectorAccess,Curriculos, JobDescription, DiagnosticoOperadores          # importar tabla "User" de models
+from models import User, TotalComents, Instructions, ReportesDataMentor, HistoryUserCourses, FormularioGestor  , Sector, UserSectorAccess,Curriculos, JobDescription, DiagnosticoOperadores, UserSectorMetric          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
-from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
+from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
 from logging_config import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
@@ -16,6 +16,7 @@ from sqlalchemy import text
 from datetime import datetime, date
 import tempfile
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_
 
 
 
@@ -847,3 +848,192 @@ def switch_gestores():
         "dni": user.dni,
         "gestor": bool(user.gestor),
     }), 200
+
+
+# SISTEMA METRICS>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+# helper:
+
+def _resolve_current_user_from_jwt():
+    identity = get_jwt_identity()
+
+    def _find_by_int(value: int):
+        return User.query.filter(
+            or_(User.dni == value, User.id == value)
+        ).first()
+
+    def _find_by_email(value: str):
+        return User.query.filter_by(email=value).first()
+
+    if identity is None:
+        return None
+
+    if isinstance(identity, int):
+        return _find_by_int(identity)
+
+    if isinstance(identity, str):
+        if identity.isdigit():
+            user = _find_by_int(int(identity))
+            if user:
+                return user
+        if "@" in identity:
+            return _find_by_email(identity)
+
+    if isinstance(identity, dict):
+        candidates = []
+
+        for key in ("dni", "id", "email"):
+            if identity.get(key):
+                candidates.append(identity.get(key))
+
+        nested_user = identity.get("user")
+        if isinstance(nested_user, dict):
+            for key in ("dni", "id", "email"):
+                if nested_user.get(key):
+                    candidates.append(nested_user.get(key))
+
+        for candidate in candidates:
+            user = None
+
+            if isinstance(candidate, int):
+                user = _find_by_int(candidate)
+            elif isinstance(candidate, str) and candidate.isdigit():
+                user = _find_by_int(int(candidate))
+            elif isinstance(candidate, str) and "@" in candidate:
+                user = _find_by_email(candidate)
+
+            if user:
+                return user
+
+    return None
+
+#------------------------------------------
+#Registrar Metricas:
+
+@admin_bp.route("/metrics/track-sector-entry", methods=["POST"])
+@jwt_required()
+def track_sector_entry():
+    current_user = _resolve_current_user_from_jwt()
+    if not current_user:
+        return jsonify({"error": "Usuario no encontrado."}), 404
+
+    body = request.get_json(silent=True) or {}
+    sector_key = (body.get("sector_key") or "").strip()
+
+    if not sector_key:
+        return jsonify({"error": "sector_key es obligatorio."}), 400
+
+    sector = Sector.query.filter_by(key=sector_key).first()
+    if not sector:
+        return jsonify({"error": f"El sector '{sector_key}' no existe."}), 404
+
+    metric = UserSectorMetric.query.filter_by(
+        user_dni=current_user.dni,
+        sector_id=sector.id
+    ).first()
+
+    now = datetime.utcnow()
+
+    if not metric:
+        metric = UserSectorMetric(
+            user_dni=current_user.dni,
+            sector_id=sector.id,
+            visits_count=1,
+            first_visited_at=now,
+            last_visited_at=now,
+        )
+        db.session.add(metric)
+    else:
+        metric.visits_count += 1
+        metric.last_visited_at = now
+
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "message": "Ingreso registrado correctamente."
+    }), 200
+
+#Consultar Metricas:
+
+@admin_bp.route("/metrics/summary", methods=["GET"])
+@jwt_required()
+def get_metrics_summary():
+    current_user = _resolve_current_user_from_jwt()
+    if not current_user or not current_user.admin:
+        return jsonify({"error": "No autorizado."}), 403
+
+    sectors = Sector.query.order_by(Sector.label.asc()).all()
+    users = User.query.order_by(User.name.asc()).all()
+    metrics = UserSectorMetric.query.all()
+
+    metrics_map = {
+        (metric.user_dni, metric.sector_id): metric
+        for metric in metrics
+    }
+
+    totals_by_sector = {sector.key: 0 for sector in sectors}
+    rows = []
+
+    for user in users:
+        user_sector_data = {}
+        user_total_visits = 0
+
+        for sector in sectors:
+            metric = metrics_map.get((user.dni, sector.id))
+            count = metric.visits_count if metric else 0
+            last_visited_at = (
+                metric.last_visited_at.isoformat() if metric and metric.last_visited_at else None
+            )
+
+            user_sector_data[sector.key] = {
+                "count": count,
+                "last_visited_at": last_visited_at,
+            }
+
+            user_total_visits += count
+            totals_by_sector[sector.key] += count
+
+        rows.append({
+            "dni": user.dni,
+            "name": user.name,
+            "email": user.email,
+            "admin": bool(user.admin),
+            "gestor": bool(user.gestor),
+            "status": bool(user.status),
+            "total_visits": user_total_visits,
+            "sectors": user_sector_data,
+        })
+
+    most_used_sector = None
+    if sectors:
+        top_sector = max(sectors, key=lambda s: totals_by_sector.get(s.key, 0))
+        top_sector_visits = totals_by_sector.get(top_sector.key, 0)
+
+        if top_sector_visits > 0:
+            most_used_sector = {
+                "key": top_sector.key,
+                "label": top_sector.label,
+                "visits": top_sector_visits,
+            }
+
+    sectors_payload = [
+        {
+            "key": sector.key,
+            "label": sector.label,
+            "description": sector.description,
+            "total_visits": totals_by_sector[sector.key],
+        }
+        for sector in sectors
+    ]
+
+    return jsonify({
+        "sectors": sectors_payload,
+        "rows": rows,
+        "totals": {
+            "total_users": len(users),
+            "total_sector_visits": sum(totals_by_sector.values()),
+            "most_used_sector": most_used_sector,
+        }
+    }), 200
+

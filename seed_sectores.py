@@ -40,6 +40,12 @@ SECTORES_BASE = [
         "description": "Formulario para capturar recomendaciones",
         "default_enabled": False,
     },
+    {
+        "key": "admin_metrics",
+        "label": "Métricas",
+        "description": "Panel de métricas de uso por sector",
+        "default_enabled": False,
+    },
 ]
 
 

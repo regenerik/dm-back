@@ -1330,3 +1330,22 @@ class DiagnosticoOperadores(db.Model):
             # METADATA
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
+
+
+class UserSectorMetric(db.Model):
+    __tablename__ = "user_sector_metrics"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_dni = db.Column(db.Integer, db.ForeignKey("user.dni"), nullable=False, index=True)
+    sector_id = db.Column(db.Integer, db.ForeignKey("sectors.id"), nullable=False, index=True)
+
+    visits_count = db.Column(db.Integer, nullable=False, default=0)
+    first_visited_at = db.Column(db.DateTime, nullable=True)
+    last_visited_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship("User", backref=db.backref("sector_metrics", lazy=True))
+    sector = db.relationship("Sector", backref=db.backref("user_metrics", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint("user_dni", "sector_id", name="uq_user_sector_metric"),
+    )
