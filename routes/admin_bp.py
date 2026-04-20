@@ -469,9 +469,10 @@ def get_buckup():
             # Nuevas
             "Sector": [],
             "UserSectorAccess": [],
+            "UserSectorMetric": [],
             "JobDescription": [],
             "Curriculos": [],
-            "DiagnosticoOperadores": [],
+            "DiagnosticoOperadores": [],           
         }
         logger.info("DEBUG: Tablas con .serialize() serializadas (base).")
 
@@ -548,6 +549,20 @@ def get_buckup():
                 "enabled": usa.enabled,
             })
         logger.info("DEBUG: Tabla UserSectorAccess serializada.")
+
+        # -------------------------
+        # UserSectorMetric (manual)
+        # -------------------------
+        for usm in UserSectorMetric.query.all():
+            backup_data["UserSectorMetric"].append({
+                "id": usm.id,
+                "user_dni": usm.user_dni,
+                "sector_id": usm.sector_id,
+                "visits_count": usm.visits_count,
+                "first_visited_at": usm.first_visited_at.isoformat() if usm.first_visited_at else None,
+                "last_visited_at": usm.last_visited_at.isoformat() if usm.last_visited_at else None,
+            })
+        logger.info("DEBUG: Tabla UserSectorMetric serializada.")
 
         # -------------------------
         # JobDescription (manual)
@@ -675,6 +690,7 @@ def restaurar_db():
 
         data_sectors               = backup_data.get("Sector", [])
         data_user_sector_access    = backup_data.get("UserSectorAccess", [])
+        data_user_sector_metrics   = backup_data.get("UserSectorMetric", [])
         data_job_description       = backup_data.get("JobDescription", [])
         data_curriculos            = backup_data.get("Curriculos", [])
         data_diagnostico_oper      = backup_data.get("DiagnosticoOperadores", [])
@@ -685,6 +701,7 @@ def restaurar_db():
         # OJO: si una lista viene vacía, NO tocamos esa tabla.
         # Borramos dependientes antes que padres para no chocar con FK.
         wiped_user_sector_access   = conditional_wipe("user_sector_access", data_user_sector_access, "UserSectorAccess")
+        wiped_user_sector_metrics  = conditional_wipe("user_sector_metrics", data_user_sector_metrics, "UserSectorMetric")
         wiped_curriculos           = conditional_wipe("curriculos", data_curriculos, "Curriculos")
 
         wiped_history              = conditional_wipe("history_user_courses", data_history_user_courses, "HistoryUserCourses")
@@ -758,6 +775,14 @@ def restaurar_db():
             restore_table(UserSectorAccess, data_user_sector_access)
             logger.info("DEBUG: Tabla UserSectorAccess restaurada.")
 
+
+        if wiped_user_sector_metrics:
+            restore_table(
+                UserSectorMetric,
+                data_user_sector_metrics,
+                date_fields={"first_visited_at", "last_visited_at"}
+            )
+            logger.info("DEBUG: Tabla UserSectorMetric restaurada.")
         # ---------------------------------------------------------
         # 6) Commit final
         # ---------------------------------------------------------
@@ -778,6 +803,7 @@ def restaurar_db():
                 "FormularioGestor": wiped_formulario_gestor,
                 "DiagnosticoOperadores": wiped_diagnostico_oper,
                 "UserSectorAccess": wiped_user_sector_access,
+                "UserSectorMetric": wiped_user_sector_metrics,
             }
         }), 200
 
